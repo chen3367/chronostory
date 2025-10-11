@@ -1,5 +1,7 @@
 // 儲存 {id: name} 的字典
 const equipmentDictionary = {};
+// 儲存 {id: sprite_override_url} 的字典
+const spriteDictionary = {};
 
 // 獲取 DOM 元素
 const searchInput = document.getElementById('searchInput');
@@ -125,6 +127,12 @@ function updateDictionaryAndShowSuggestions(items) {
         if (item.item_id && item.item_name) {
             equipmentDictionary[item.item_id] = item.item_name;
 
+            // 如果存在 sprite_override.url，將其儲存在字典中
+            if (item.sprite_override && item.sprite_override.url) {
+                spriteDictionary[item.item_id] = item.sprite_override.url;
+                console.log(`儲存 sprite_override.url 對於項目 ${item.item_id}:`, item.sprite_override.url);
+            }
+
             const suggestionItem = document.createElement('div');
             suggestionItem.className = 'suggestion-item';
             suggestionItem.textContent = item.item_name;
@@ -142,6 +150,7 @@ function updateDictionaryAndShowSuggestions(items) {
 
     showSuggestions();
     console.log('當前裝備字典:', equipmentDictionary);
+    console.log('當前 sprite 字典:', spriteDictionary);
 }
 
 // 顯示載入中
@@ -225,33 +234,48 @@ async function fetchItemDetails(itemId) {
 
         const itemInfo = await infoResponse.json();
 
-        // 嘗試獲取圖標：先嘗試第一個來源，如果失敗則使用備用來源
+        // 嘗試獲取圖標：優先使用 sprite_override.url，如果沒有則嘗試其他來源
         let iconUrl;
 
-        // 第一個圖標來源
-        const iconUrlApi = `https://maplestory.io/api/GMS/62/item/${itemId}/icon`;
-        const iconResponse = await fetch(iconUrlApi);
-
-        if (iconResponse.ok) {
-            // 第一個圖標來源成功
-            const iconBlob = await iconResponse.blob();
-            iconUrl = URL.createObjectURL(iconBlob);
-            console.log('成功獲取圖標來自:', iconUrlApi);
+        // 檢查是否有儲存的 sprite_override.url
+        if (spriteDictionary[itemId]) {
+            // 直接使用儲存的 sprite_override.url
+            iconUrl = spriteDictionary[itemId];
+            console.log('使用儲存的 sprite_override.url:', iconUrl);
         } else {
-            console.log('第一個圖標來源失敗，嘗試備用來源，狀態碼:', iconResponse.status);
-            // 第一個圖標來源失敗，使用備用圖標
-            const fallbackIconUrl = `https://chronostory.onrender.com/sprites/${itemId}.png`;
-            const fallbackIconProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(fallbackIconUrl);
-            const fallbackResponse = await fetch(fallbackIconProxyUrl);
+            console.log('沒有儲存的 sprite_override.url，嘗試其他圖標來源');
 
-            if (fallbackResponse.ok) {
-                const iconBlob = await fallbackResponse.blob();
+            // 第一個圖標來源
+            const iconUrlApi = `https://maplestory.io/api/GMS/62/item/${itemId}/icon`;
+            const iconResponse = await fetch(iconUrlApi);
+
+            if (iconResponse.ok) {
+                // 第一個圖標來源成功
+                const iconBlob = await iconResponse.blob();
                 iconUrl = URL.createObjectURL(iconBlob);
-                console.log('成功獲取備用圖標來自:', fallbackIconUrl);
+                console.log('成功獲取圖標來自:', iconUrlApi);
             } else {
-                console.error('備用圖標來源也失敗，狀態碼:', fallbackResponse.status);
-                // 如果都失敗，使用預設圖標
-                iconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjVGNUY1Ii8+Cjx0ZXh0IHg9IjMyIiB5PSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjOTk5Ij5ObyBJY29uPC90ZXh0Pgo8L3N2Zz4K';
+                console.log('第一個圖標來源失敗，嘗試備用來源，狀態碼:', iconResponse.status);
+                // 第一個圖標來源失敗，使用備用圖標
+                const fallbackIconUrl = `https://chronostory.onrender.com/sprites/${itemId}.png`;
+                const fallbackIconProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(fallbackIconUrl);
+
+                try {
+                    const fallbackResponse = await fetch(fallbackIconProxyUrl);
+                    if (fallbackResponse.ok) {
+                        const iconBlob = await fallbackResponse.blob();
+                        iconUrl = URL.createObjectURL(iconBlob);
+                        console.log('成功獲取備用圖標來自:', fallbackIconUrl);
+                    } else {
+                        console.error('備用圖標來源失敗，狀態碼:', fallbackResponse.status);
+                        // 如果都失敗，使用預設圖標
+                        iconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjVGNUY1Ii8+Cjx0ZXh0IHg9IjMyIiB5PSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjOTk5Ij5ObyBJY29uPC90ZXh0Pgo8L3N2Zz4K';
+                    }
+                } catch (error) {
+                    console.error('獲取備用圖標時發生錯誤:', error);
+                    // 使用預設圖標
+                    iconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjVGNUY1Ii8+Cjx0ZXh0IHg9IjMyIiB5PSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjOTk5Ij5ObyBJY29uPC90ZXh0Pgo8L3N2Zz4K';
+                }
             }
         }
 
