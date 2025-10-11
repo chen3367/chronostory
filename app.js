@@ -613,3 +613,15 @@ function translateStatName(statKey) {
     };
     return map[statKey] || statKey;
 }
+
+// 中英翻譯選單切換功能
+function toggleTranslateMenu() {
+    const translateMenu = document.getElementById('translate-menu');
+    if (translateMenu) {
+        if (translateMenu.style.display === 'none' || translateMenu.style.display === '') {
+            translateMenu.style.display = 'block';
+        } else {
+            translateMenu.style.display = 'none';
+        }
+    }
+}
