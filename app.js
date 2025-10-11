@@ -354,10 +354,34 @@ function displayItemDetails(iconUrl, itemInfo) {
         for (const [key, val] of Object.entries(stats)) {
             // 避免 val 為 null、undefined 或非數值（例如 0 也要顯示）
             if (val != null) {
+                // 格式化數值為 3 位寬度
+                const formattedVal = val.toString().padStart(3, ' ');
+                let statDisplay = `<span class="info-value positive stat-value">${formattedVal}</span>`;
+
+                // 如果存在對應的屬性變化，將其附加在屬性值前面
+                if (equipment.stat_variation) {
+                    const variation = equipment.stat_variation;
+
+                    // 嘗試匹配屬性變化（支援不同的鍵名格式）
+                    let minVal = null;
+                    let maxVal = null;
+
+                    // 直接檢查是否有對應的變化值
+                    if (variation[key] && typeof variation[key] === 'object') {
+                        minVal = variation[key].min;
+                        maxVal = variation[key].max;
+                    }
+
+                    // 如果有變化範圍，將其附加在屬性值前面並靠右對齊
+                    if (minVal !== null && maxVal !== null) {
+                        statDisplay = `<span class="info-value neutral variation-range">(${minVal}~${maxVal})</span> ` + statDisplay;
+                    }
+                }
+
                 statsHtml += `
                     <div class="info-row">
                         <span class="info-label">${translateStatName(key)}:</span>
-                        <span class="info-value positive">+${val}</span>
+                        <span class="info-value-container">${statDisplay}</span>
                     </div>
                 `;
             }
