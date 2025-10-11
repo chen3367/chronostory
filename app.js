@@ -35,18 +35,55 @@ document.addEventListener('click', function(e) {
 // 搜尋裝備函數
 async function searchEquipment(searchTerm) {
     showLoading();
-    
+
     try {
-        const url = `https://maplestory.io/api/GMS/62/item?searchFor=${encodeURIComponent(searchTerm)}`;
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error('網路請求失敗');
+        const apiUrl = `https://chronostory.onrender.com/api/unified-search`;
+
+        // 嘗試多個代理服務
+        const proxies = [
+            'https://corsproxy.io/?' + encodeURIComponent(apiUrl),
+            'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl),
+            'https://cors-anywhere.herokuapp.com/' + apiUrl
+        ];
+
+        let response;
+        let data;
+
+        for (const proxyUrl of proxies) {
+            try {
+                console.log('嘗試代理服務:', proxyUrl);
+                response = await fetch(proxyUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: searchTerm
+                    })
+                });
+
+                if (response.ok) {
+                    data = await response.json();
+                    console.log('成功使用代理服務:', proxyUrl);
+                    break;
+                }
+            } catch (error) {
+                console.log('代理服務失敗:', proxyUrl, error);
+                continue;
+            }
         }
-        
-        const data = await response.json();
-        updateDictionaryAndShowSuggestions(data);
-        
+
+        if (!response || !response.ok) {
+            throw new Error('所有代理服務都無法使用');
+        }
+
+        // 只需要處理 response.items
+        if (data.items) {
+            updateDictionaryAndShowSuggestions(data.items);
+        } else {
+            updateDictionaryAndShowSuggestions([]);
+        }
+
     } catch (error) {
         console.error('搜尋錯誤:', error);
         showError('搜尋時發生錯誤，請稍後再試');
@@ -56,31 +93,32 @@ async function searchEquipment(searchTerm) {
 // 更新字典並顯示建議
 function updateDictionaryAndShowSuggestions(items) {
     suggestionsDiv.innerHTML = '';
-    
+
     if (!items || items.length === 0) {
         showNoResults();
         return;
     }
-    
+
     items.forEach(item => {
-        if (item.id && item.name) {
-            equipmentDictionary[item.id] = item.name;
-            
+        // 使用新的響應格式：item_id 和 item_name
+        if (item.item_id && item.item_name) {
+            equipmentDictionary[item.item_id] = item.item_name;
+
             const suggestionItem = document.createElement('div');
             suggestionItem.className = 'suggestion-item';
-            suggestionItem.textContent = item.name;
-            suggestionItem.dataset.id = item.id;
-            
+            suggestionItem.textContent = item.item_name;
+            suggestionItem.dataset.id = item.item_id;
+
             suggestionItem.addEventListener('click', function() {
-                searchInput.value = item.name;
+                searchInput.value = item.item_name;
                 hideSuggestions();
-                console.log(`選擇的裝備 - ID: ${item.id}, Name: ${item.name}`);
+                console.log(`選擇的裝備 - ID: ${item.item_id}, Name: ${item.item_name}`);
             });
-            
+
             suggestionsDiv.appendChild(suggestionItem);
         }
     });
-    
+
     showSuggestions();
     console.log('當前裝備字典:', equipmentDictionary);
 }
@@ -153,29 +191,51 @@ searchButton.addEventListener('click', async function() {
 async function fetchItemDetails(itemId) {
     resultDisplay.classList.remove('empty');
     resultDisplay.innerHTML = '<div class="loading-message">載入中...</div>';
-    
+
     try {
-        // --- 修改這裡：使用 allorigins proxy 避免 CORS ---
-        const iconUrlApi = `https://maplestory.io/api/GMS/62/item/${itemId}/icon`;
+        // 獲取裝備資訊
         const infoUrl = `https://chronostory.onrender.com/api/item-info?itemId=${itemId}`;
-        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(infoUrl);
+        const infoProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(infoUrl);
+        const infoResponse = await fetch(infoProxyUrl);
 
-        const [iconResponse, infoResponse] = await Promise.all([
-            fetch(iconUrlApi),
-            fetch(proxyUrl)
-        ]);
-        // ---------------------------------------------------
-
-        if (!iconResponse.ok || !infoResponse.ok) {
+        if (!infoResponse.ok) {
             throw new Error('無法獲取裝備資訊');
         }
-        
-        const iconBlob = await iconResponse.blob();
-        const iconUrl = URL.createObjectURL(iconBlob);
+
         const itemInfo = await infoResponse.json();
-        
+
+        // 嘗試獲取圖標：先嘗試第一個來源，如果失敗則使用備用來源
+        let iconUrl;
+
+        // 第一個圖標來源
+        const iconUrlApi = `https://maplestory.io/api/GMS/62/item/${itemId}/icon`;
+        const iconResponse = await fetch(iconUrlApi);
+
+        if (iconResponse.ok) {
+            // 第一個圖標來源成功
+            const iconBlob = await iconResponse.blob();
+            iconUrl = URL.createObjectURL(iconBlob);
+            console.log('成功獲取圖標來自:', iconUrlApi);
+        } else {
+            console.log('第一個圖標來源失敗，嘗試備用來源，狀態碼:', iconResponse.status);
+            // 第一個圖標來源失敗，使用備用圖標
+            const fallbackIconUrl = `https://chronostory.onrender.com/sprites/${itemId}.png`;
+            const fallbackIconProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(fallbackIconUrl);
+            const fallbackResponse = await fetch(fallbackIconProxyUrl);
+
+            if (fallbackResponse.ok) {
+                const iconBlob = await fallbackResponse.blob();
+                iconUrl = URL.createObjectURL(iconBlob);
+                console.log('成功獲取備用圖標來自:', fallbackIconUrl);
+            } else {
+                console.error('備用圖標來源也失敗，狀態碼:', fallbackResponse.status);
+                // 如果都失敗，使用預設圖標
+                iconUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjVGNUY1Ii8+Cjx0ZXh0IHg9IjMyIiB5PSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEwIiBmaWxsPSIjOTk5Ij5ObyBJY29uPC90ZXh0Pgo8L3N2Zz4K';
+            }
+        }
+
         displayItemDetails(iconUrl, itemInfo);
-        
+
     } catch (error) {
         console.error('獲取裝備詳細資訊錯誤:', error);
         resultDisplay.innerHTML = '<div class="error-message">獲取裝備資訊時發生錯誤，請稍後再試</div>';
