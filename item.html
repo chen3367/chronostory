@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>裝備搜尋 - ChronoStory library</title>
+  <title>物品搜尋 - ChronoStory library</title>
   <link rel="icon" type="image/png" href="icon.png" />
   <link rel="stylesheet" href="style.css" />
   <script defer src="app.js"></script>
@@ -19,7 +19,7 @@
   <div class="container">
     <nav>
       <a href="index.html"><img src="https://maplestory.io/api/GMS/62/item/4161002/icon" alt="首頁" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 8px;" />首頁</a>
-      <a href="equipment.html"><img src="https://maplestory.io/api/GMS/62/item/1472032/icon" alt="裝備查詢" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 8px;" />裝備查詢</a>
+      <a href="item.html"><img src="https://maplestory.io/api/GMS/62/item/1472032/icon" alt="物品查詢" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 8px;" />物品查詢</a>
       <a href="#" onclick="toggleTranslateMenu()"><img src="https://maplestory.io/api/GMS/62/item/4032063/icon" alt="中英翻譯" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 8px;" />中英翻譯</a>
       <div id="translate-menu" style="display: none; margin-left: 20px;">
         <a href="translate_item.html" style="display: block; margin: 5px 0;">• 物品翻譯</a>
@@ -28,14 +28,14 @@
     </nav>
 
     <main>
-      <h1>裝備搜尋</h1>
-      <div class="content">若顯示"獲取裝備資訊時發生錯誤，請稍後再試"，可以多按幾次搜尋看看</div>
+      <h1>物品搜尋</h1>
+      <div class="content">若顯示"獲取物品資訊時發生錯誤，請稍後再試"，可以多按幾次搜尋看看</div>
       <div class="content">
         <div class="search-wrapper">
           <input 
             type="text" 
             id="searchInput" 
-            placeholder="輸入裝備名稱進行搜尋..."
+            placeholder="輸入物品名稱進行搜尋..."
             autocomplete="off"
           />
           <div id="suggestions"></div>

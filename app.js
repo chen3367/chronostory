@@ -37,7 +37,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// 搜尋裝備函數（帶重試機制）
+// 搜尋物品函數（帶重試機制）
 async function searchEquipment(searchTerm) {
     showLoading();
 
@@ -155,7 +155,7 @@ function updateDictionaryAndShowSuggestions(items) {
                     searchInput.value = item.item_name;
                 }
                 hideSuggestions();
-                console.log(`選擇的裝備 - ID: ${item.item_id}, Name: ${item.item_name}`);
+                console.log(`選擇的物品 - ID: ${item.item_id}, Name: ${item.item_name}`);
             });
 
             suggestionsDiv.appendChild(suggestionItem);
@@ -163,7 +163,7 @@ function updateDictionaryAndShowSuggestions(items) {
     });
 
     showSuggestions();
-    console.log('當前裝備字典:', equipmentDictionary);
+    console.log('當前物品字典:', equipmentDictionary);
     console.log('當前 sprite 字典:', spriteDictionary);
 }
 
@@ -175,7 +175,7 @@ function showLoading() {
 
 // 顯示無結果
 function showNoResults() {
-    suggestionsDiv.innerHTML = '<div class="no-results">找不到相關裝備</div>';
+    suggestionsDiv.innerHTML = '<div class="no-results">找不到相關物品</div>';
     showSuggestions();
 }
 
@@ -211,7 +211,7 @@ function getEquipmentIdByName(name) {
     return null;
 }
 
-// ===== 裝備詳細資訊搜尋功能 =====
+// ===== 物品詳細資訊搜尋功能 =====
 const searchButton = document.getElementById('searchButton');
 const resultDisplay = document.getElementById('resultDisplay');
 let selectedItemId = null;
@@ -228,14 +228,14 @@ document.addEventListener('click', function(e) {
 if (searchButton) {
     searchButton.addEventListener('click', async function() {
         if (!selectedItemId) {
-            alert('請先選擇一個裝備');
+            alert('請先選擇一個物品');
             return;
         }
         await fetchItemDetails(selectedItemId);
     });
 }
 
-// 獲取裝備詳細資訊
+// 獲取物品詳細資訊
 async function fetchItemDetails(itemId) {
     if (!resultDisplay) return;
 
@@ -243,13 +243,13 @@ async function fetchItemDetails(itemId) {
     resultDisplay.innerHTML = '<div class="loading-message">載入中...</div>';
 
     try {
-        // 獲取裝備資訊
+        // 獲取物品資訊
         const infoUrl = `https://chronostory.onrender.com/api/item-info?itemId=${itemId}`;
         const infoProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(infoUrl);
         const infoResponse = await fetch(infoProxyUrl);
 
         if (!infoResponse.ok) {
-            throw new Error('無法獲取裝備資訊');
+            throw new Error('無法獲取物品資訊');
         }
 
         const itemInfo = await infoResponse.json();
@@ -303,8 +303,8 @@ async function fetchItemDetails(itemId) {
         await fetchMobDropInfo(itemId, iconUrl, itemInfo);
 
     } catch (error) {
-        console.error('獲取裝備詳細資訊錯誤:', error);
-        resultDisplay.innerHTML = '<div class="error-message">獲取裝備資訊時發生錯誤，請稍後再試</div>';
+        console.error('獲取物品詳細資訊錯誤:', error);
+        resultDisplay.innerHTML = '<div class="error-message">獲取物品資訊時發生錯誤，請稍後再試</div>';
     }
 }
 
@@ -318,9 +318,17 @@ async function fetchMobDropInfo(itemId, iconUrl, itemInfo) {
         if (mobResponse.ok) {
             const mobData = await mobResponse.json();
             console.log('成功獲取怪物掉落資訊:', mobData);
-            displayItemDetailsWithDrops(iconUrl, itemInfo, mobData);
+
+            // 檢查物品類型和子類型來決定使用哪個顯示函數
+            if (itemInfo.type === 'Eqp') {
+                displayEqpDetailsWithDrops(iconUrl, itemInfo, mobData);
+            } else if (itemInfo.sub_type === 'Scroll') {
+                displayScrollDetailsWithDrops(iconUrl, itemInfo, mobData);
+            } else {
+                displayItemDetails(iconUrl, itemInfo);
+            }
         } else {
-            console.log('無法獲取怪物掉落資訊，僅顯示裝備資訊');
+            console.log('無法獲取怪物掉落資訊，僅顯示物品資訊');
             displayItemDetails(iconUrl, itemInfo);
         }
     } catch (error) {
@@ -329,8 +337,8 @@ async function fetchMobDropInfo(itemId, iconUrl, itemInfo) {
     }
 }
 
-// 顯示裝備詳細資訊（包含怪物掉落資訊）
-function displayItemDetailsWithDrops(iconUrl, itemInfo, mobData) {
+// 顯示物品詳細資訊（包含怪物掉落資訊）
+function displayEqpDetailsWithDrops(iconUrl, itemInfo, mobData) {
     const equipment = itemInfo.equipment;
 
     let html = `
@@ -467,7 +475,108 @@ function displayItemDetailsWithDrops(iconUrl, itemInfo, mobData) {
     resultDisplay.innerHTML = html;
 }
 
-// 顯示裝備詳細資訊
+// 顯示卷軸詳細資訊（包含怪物掉落資訊）
+function displayScrollDetailsWithDrops(iconUrl, itemInfo, mobData) {
+    let html = `
+        <div class="item-header">
+            <img src="${iconUrl}" alt="${itemInfo.item_name}" class="item-icon" />
+            <div class="item-title">
+                <h2>${itemInfo.item_name}</h2>
+                <div class="item-type">${translateType(itemInfo.type)} - ${translateSubType(itemInfo.sub_type)}</div>
+            </div>
+        </div>
+        <div class="item-info">
+    `;
+
+    html += `
+        <div class="info-section">
+            <h3>基本資訊</h3>
+            <div class="info-row"><span class="info-label">物品ID:</span><span class="info-value">${itemInfo.item_id}</span></div>
+            <div class="info-row"><span class="info-label">販賣價格:</span><span class="info-value">${itemInfo.sale_price.toLocaleString()} 楓幣</span></div>
+            ${itemInfo.untradeable ? '<div class="info-row"><span class="info-label">不可交易</span></div>' : ''}
+        </div>
+    `;
+
+    // 如果有卷軸特定屬性，顯示它們
+    if (itemInfo.scroll) {
+        html += `
+            <div class="info-section">
+                <h3>卷軸屬性</h3>
+        `;
+
+        if (itemInfo.scroll.category) {
+            html += `<div class="info-row"><span class="info-label">適用裝備:</span><span class="info-value">${translateScrollCategory(itemInfo.scroll.category)}</span></div>`;
+        }
+        if (itemInfo.scroll.success_rate) {
+            html += `<div class="info-row"><span class="info-label">成功率:</span><span class="info-value">${itemInfo.scroll.success_rate}%</span></div>`;
+        }
+        if (itemInfo.scroll.destroy_rate) {
+            html += `<div class="info-row"><span class="info-label">破壞率:</span><span class="info-value">${itemInfo.scroll.destroy_rate}%</span></div>`;
+        }
+
+        html += `</div>`;
+
+        // 顯示捲軸統計屬性
+        if (itemInfo.scroll.stats && typeof itemInfo.scroll.stats === 'object') {
+            const stats = itemInfo.scroll.stats;
+            let statsHtml = '';
+
+            for (const [key, val] of Object.entries(stats)) {
+                // 只顯示非 null 的值
+                if (val != null) {
+                    // 格式化數值為 3 位寬度
+                    const formattedVal = val.toString().padStart(3, ' ');
+                    statsHtml += `
+                        <div class="info-row">
+                            <span class="info-label">${translateStatName(key)}:</span>
+                            <span class="info-value positive stat-value">${formattedVal}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            if (statsHtml !== '') {
+                html += `
+                    <div class="info-section">
+                        <h3>卷軸效果</h3>
+                        ${statsHtml}
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // 顯示怪物掉落資訊
+    if (mobData && mobData.length > 0) {
+        let dropsHtml = '';
+
+        mobData.forEach(mob => {
+            const mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            dropsHtml += `
+                <div class="mob-drop-item">
+                    <img src="${mobImageUrl}" alt="${mob.mob_name}" class="mob-image" />
+                    <div class="mob-info">
+                        <div class="mob-name">${mob.mob_name}</div>
+                        <div class="mob-chance">掉落率: ${(mob.chance).toFixed(2)}%</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (dropsHtml !== '') {
+            html += `
+                <div class="info-section">
+                    <h3>怪物掉落</h3>
+                    <div class="mob-drops">${dropsHtml}</div>
+                </div>
+            `;
+        }
+    }
+
+    resultDisplay.innerHTML = html;
+}
+
+// 顯示物品詳細資訊
 function displayItemDetails(iconUrl, itemInfo) {
     if (!resultDisplay) return;
 
@@ -584,7 +693,7 @@ function displayItemDetails(iconUrl, itemInfo) {
 
 // 翻譯類型
 function translateType(type) {
-    const map = { 'Eqp': '裝備', 'Use': '消耗', 'Setup': '裝飾', 'Etc': '其他', 'Cash': '現金' };
+    const map = { 'Eqp': '裝備', 'Use': '消耗', 'Setup': '裝飾', 'Etc': '其他', 'Cash': '現金', 'Consume': '消耗' };
     return map[type] || type;
 }
 
@@ -595,7 +704,8 @@ function translateSubType(subType) {
         'Cape': '披風', 'Shield': '盾牌', 'Weapon': '武器', 'Ring': '戒指', 'Pendant': '項鍊',
         'Belt': '腰帶', 'Medal': '勳章', 'Shoulder': '肩膀', 'Pocket': '口袋道具',
         'Badge': '徽章', 'Emblem': '紋章', 'Android': '機器人', 'Mechanic': '機甲',
-        'Bits': '零件', 'Face': '臉飾', 'Eye': '眼飾', 'Earring': '耳環', 'Projectile': '投擲物'
+        'Bits': '零件', 'Face': '臉飾', 'Eye': '眼飾', 'Earring': '耳環', 'Projectile': '投擲物',
+        'Scroll': '卷軸'
     };
     return map[subType] || subType;
 }
@@ -627,6 +737,24 @@ function translateStatName(statKey) {
         avoidability: '迴避率', speed: '移動速度', jump: '跳躍力', upgrades: '可升級次數'
     };
     return map[statKey] || statKey;
+}
+
+// 翻譯捲軸類別
+function translateScrollCategory(category) {
+    const map = {
+        'Earring': '耳環', 'Hat': '帽子', 'Top': '上衣', 'Overall': '套服',
+        'Bottom': '褲裙', 'Shoes': '鞋子', 'Gloves': '手套', 'Cape': '披風',
+        'Shield': '盾牌', 'Weapon': '武器', 'Ring': '戒指', 'Pendant': '項鍊',
+        'Belt': '腰帶', 'Medal': '勳章', 'Shoulder': '肩膀', 'Face': '臉飾',
+        'Eye': '眼飾', 'Badge': '徽章', 'Emblem': '紋章', 'Android': '機器人',
+        'Mechanic': '機甲', 'Bits': '零件', 'Pocket': '口袋道具',
+        'Projectile': '投擲物', 'Claw': '拳套', 'Bow': '弓', 'Crossbow': '弩',
+        'Spear': '槍', 'Polearm': '矛', 'Gun': '火槍', 'One Handed Sword': '單手劍',
+        'One Handed Axe': '單手斧', 'One Handed BW': '單手棍',
+        'Two Handed Sword': '雙手劍', 'Two Handed Axe': '雙手斧',
+        'Two Handed BW': '雙手棍', 'Dagger': '短劍', 'Staff': '長杖', 'Wand': '短杖'
+    };
+    return map[category] || category;
 }
 
 // 中英翻譯選單切換功能
