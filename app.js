@@ -129,8 +129,15 @@ function updateDictionaryAndShowSuggestions(items) {
 
             // 如果存在 sprite_override.url，將其儲存在字典中
             if (item.sprite_override && item.sprite_override.url) {
-                spriteDictionary[item.item_id] = item.sprite_override.url;
-                console.log(`儲存 sprite_override.url 對於項目 ${item.item_id}:`, item.sprite_override.url);
+                let spriteUrl = item.sprite_override.url;
+
+                // 如果 URL 不以 http 開頭，補全為完整 URL
+                if (!spriteUrl.startsWith('http')) {
+                    spriteUrl = 'https://chronostory.onrender.com' + spriteUrl;
+                }
+
+                spriteDictionary[item.item_id] = spriteUrl;
+                console.log(`儲存 sprite_override.url 對於項目 ${item.item_id}:`, spriteUrl);
             }
 
             const suggestionItem = document.createElement('div');
