@@ -32,62 +32,83 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// 搜尋裝備函數
+// 搜尋裝備函數（帶重試機制）
 async function searchEquipment(searchTerm) {
     showLoading();
 
-    try {
-        const apiUrl = `https://chronostory.onrender.com/api/unified-search`;
+    const maxRetries = 2;
+    let lastError;
 
-        // 嘗試多個代理服務
-        const proxies = [
-            'https://corsproxy.io/?' + encodeURIComponent(apiUrl),
-            'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl),
-            'https://cors-anywhere.herokuapp.com/' + apiUrl
-        ];
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`搜尋嘗試 ${attempt + 1}/${maxRetries + 1}`);
 
-        let response;
-        let data;
+            const apiUrl = `https://chronostory.onrender.com/api/unified-search`;
 
-        for (const proxyUrl of proxies) {
-            try {
-                console.log('嘗試代理服務:', proxyUrl);
-                response = await fetch(proxyUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        query: searchTerm
-                    })
-                });
+            // 嘗試多個代理服務
+            const proxies = [
+                'https://corsproxy.io/?' + encodeURIComponent(apiUrl),
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl),
+                'https://cors-anywhere.herokuapp.com/' + apiUrl
+            ];
 
-                if (response.ok) {
-                    data = await response.json();
-                    console.log('成功使用代理服務:', proxyUrl);
-                    break;
+            let response;
+            let data;
+
+            for (const proxyUrl of proxies) {
+                try {
+                    console.log('嘗試代理服務:', proxyUrl);
+                    response = await fetch(proxyUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            query: searchTerm
+                        })
+                    });
+
+                    if (response.ok) {
+                        data = await response.json();
+                        console.log('成功使用代理服務:', proxyUrl);
+                        break;
+                    }
+                } catch (error) {
+                    console.log('代理服務失敗:', proxyUrl, error);
+                    continue;
                 }
-            } catch (error) {
-                console.log('代理服務失敗:', proxyUrl, error);
-                continue;
+            }
+
+            if (!response || !response.ok) {
+                throw new Error('所有代理服務都無法使用');
+            }
+
+            // 只需要處理 response.items
+            if (data.items) {
+                updateDictionaryAndShowSuggestions(data.items);
+            } else {
+                updateDictionaryAndShowSuggestions([]);
+            }
+
+            console.log(`搜尋成功完成於嘗試 ${attempt + 1}`);
+            return; // 成功則退出函數
+
+        } catch (error) {
+            lastError = error;
+            console.error(`搜尋嘗試 ${attempt + 1} 失敗:`, error);
+
+            // 如果不是最後一次嘗試，等待一段時間後重試
+            if (attempt < maxRetries) {
+                const delay = (attempt + 1) * 1000; // 遞增延遲：1秒，2秒
+                console.log(`等待 ${delay}ms 後進行第 ${attempt + 2} 次嘗試`);
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
-
-        if (!response || !response.ok) {
-            throw new Error('所有代理服務都無法使用');
-        }
-
-        // 只需要處理 response.items
-        if (data.items) {
-            updateDictionaryAndShowSuggestions(data.items);
-        } else {
-            updateDictionaryAndShowSuggestions([]);
-        }
-
-    } catch (error) {
-        console.error('搜尋錯誤:', error);
-        showError('搜尋時發生錯誤，請稍後再試');
     }
+
+    // 所有重試都失敗了
+    console.error('搜尋最終失敗，經過所有重試:', lastError);
+    showError('搜尋時發生錯誤，請稍後再試');
 }
 
 // 更新字典並顯示建議
