@@ -275,8 +275,28 @@ function displayItemDetails(iconUrl, itemInfo) {
                 <div class="item-type">${translateType(itemInfo.type)} - ${translateSubType(itemInfo.sub_type)}</div>
             </div>
         </div>
-        <div class="item-info">
+        <div class="class-info">
     `;
+
+    // 職業標籤顯示 - 顯示所有職業，不顯示標題
+    if (equipment.classes) {
+        const allClasses = [
+            { key: 'beginner', name: '初心者', active: equipment.classes.beginner },
+            { key: 'warrior', name: '劍士', active: equipment.classes.warrior },
+            { key: 'magician', name: '法師', active: equipment.classes.magician },
+            { key: 'bowman', name: '弓箭手', active: equipment.classes.bowman },
+            { key: 'thief', name: '盜賊', active: equipment.classes.thief },
+            { key: 'pirate', name: '海盜', active: equipment.classes.pirate }
+        ];
+
+        const classTags = allClasses.map(cls =>
+            `<span class="class-tag ${cls.active ? 'active' : 'inactive'}">${cls.name}</span>`
+        ).join('');
+
+        html += `<div class="class-tags">${classTags}</div>`;
+    }
+
+    html += `</div><div class="item-info">`;
     
     html += `
         <div class="info-section">
@@ -301,24 +321,7 @@ function displayItemDetails(iconUrl, itemInfo) {
         `;
     }
     
-    if (equipment.classes) {
-        const allowedClasses = [];
-        if (equipment.classes.warrior) allowedClasses.push('劍士');
-        if (equipment.classes.magician) allowedClasses.push('法師');
-        if (equipment.classes.bowman) allowedClasses.push('弓箭手');
-        if (equipment.classes.thief) allowedClasses.push('盜賊');
-        if (equipment.classes.pirate) allowedClasses.push('海盜');
-        if (equipment.classes.beginner) allowedClasses.push('初心者');
-        
-        if (allowedClasses.length > 0) {
-            html += `
-                <div class="info-section">
-                    <h3>職業限制</h3>
-                    <div class="info-row"><span class="info-value">${allowedClasses.join(', ')}</span></div>
-                </div>
-            `;
-        }
-    }
+
     
     if (equipment.stats && typeof equipment.stats === 'object') {
         const stats = equipment.stats;
