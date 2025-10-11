@@ -394,3 +394,51 @@ main .content {
   width: 30px;
   text-align: right;
 }
+
+/* ===== 怪物掉落樣式 ===== */
+.mob-drops {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.mob-drop-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease;
+}
+
+.mob-drop-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mob-image {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.mob-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mob-name {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.mob-chance {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+}

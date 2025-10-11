@@ -286,12 +286,172 @@ async function fetchItemDetails(itemId) {
             }
         }
 
-        displayItemDetails(iconUrl, itemInfo);
+        // 獲取怪物掉落資訊
+        await fetchMobDropInfo(itemId, iconUrl, itemInfo);
 
     } catch (error) {
         console.error('獲取裝備詳細資訊錯誤:', error);
         resultDisplay.innerHTML = '<div class="error-message">獲取裝備資訊時發生錯誤，請稍後再試</div>';
     }
+}
+
+// 獲取怪物掉落資訊
+async function fetchMobDropInfo(itemId, iconUrl, itemInfo) {
+    try {
+        const mobSearchUrl = `https://chronostory.onrender.com/api/mob-search?itemId=${itemId}`;
+        const mobProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(mobSearchUrl);
+        const mobResponse = await fetch(mobProxyUrl);
+
+        if (mobResponse.ok) {
+            const mobData = await mobResponse.json();
+            console.log('成功獲取怪物掉落資訊:', mobData);
+            displayItemDetailsWithDrops(iconUrl, itemInfo, mobData);
+        } else {
+            console.log('無法獲取怪物掉落資訊，僅顯示裝備資訊');
+            displayItemDetails(iconUrl, itemInfo);
+        }
+    } catch (error) {
+        console.error('獲取怪物掉落資訊錯誤:', error);
+        displayItemDetails(iconUrl, itemInfo);
+    }
+}
+
+// 顯示裝備詳細資訊（包含怪物掉落資訊）
+function displayItemDetailsWithDrops(iconUrl, itemInfo, mobData) {
+    const equipment = itemInfo.equipment;
+
+    let html = `
+        <div class="item-header">
+            <img src="${iconUrl}" alt="${itemInfo.item_name}" class="item-icon" />
+            <div class="item-title">
+                <h2>${itemInfo.item_name}</h2>
+                <div class="item-type">${translateType(itemInfo.type)} - ${translateSubType(itemInfo.sub_type)}</div>
+            </div>
+        </div>
+        <div class="class-info">
+    `;
+
+    // 職業標籤顯示 - 顯示所有職業，不顯示標題
+    if (equipment.classes) {
+        const allClasses = [
+            { key: 'beginner', name: '初心者', active: equipment.classes.beginner },
+            { key: 'warrior', name: '劍士', active: equipment.classes.warrior },
+            { key: 'magician', name: '法師', active: equipment.classes.magician },
+            { key: 'bowman', name: '弓箭手', active: equipment.classes.bowman },
+            { key: 'thief', name: '盜賊', active: equipment.classes.thief },
+            { key: 'pirate', name: '海盜', active: equipment.classes.pirate }
+        ];
+
+        const classTags = allClasses.map(cls =>
+            `<span class="class-tag ${cls.active ? 'active' : 'inactive'}">${cls.name}</span>`
+        ).join('');
+
+        html += `<div class="class-tags">${classTags}</div>`;
+    }
+
+    html += `</div><div class="item-info">`;
+
+    html += `
+        <div class="info-section">
+            <h3>基本資訊</h3>
+            <div class="info-row"><span class="info-label">物品ID:</span><span class="info-value">${itemInfo.item_id}</span></div>
+            <div class="info-row"><span class="info-label">類別:</span><span class="info-value">${translateCategory(equipment.category)}</span></div>
+            <div class="info-row"><span class="info-label">販賣價格:</span><span class="info-value">${itemInfo.sale_price.toLocaleString()} 楓幣</span></div>
+            ${itemInfo.untradeable ? '<div class="info-row"><span class="info-label">不可交易</span></div>' : ''}
+        </div>
+    `;
+
+    if (equipment.requirements) {
+        html += `
+            <div class="info-section">
+                <h3>需求條件</h3>
+                ${equipment.requirements.req_level ? `<div class="info-row"><span class="info-label">等級:</span><span class="info-value">${equipment.requirements.req_level}</span></div>` : ''}
+                ${equipment.requirements.req_str ? `<div class="info-row"><span class="info-label">力量:</span><span class="info-value">${equipment.requirements.req_str}</span></div>` : ''}
+                ${equipment.requirements.req_dex ? `<div class="info-row"><span class="info-label">敏捷:</span><span class="info-value">${equipment.requirements.req_dex}</span></div>` : ''}
+                ${equipment.requirements.req_int ? `<div class="info-row"><span class="info-label">智力:</span><span class="info-value">${equipment.requirements.req_int}</span></div>` : ''}
+                ${equipment.requirements.req_luk ? `<div class="info-row"><span class="info-label">幸運:</span><span class="info-value">${equipment.requirements.req_luk}</span></div>` : ''}
+            </div>
+        `;
+    }
+
+    if (equipment.stats && typeof equipment.stats === 'object') {
+        const stats = equipment.stats;
+        let statsHtml = '';
+
+        for (const [key, val] of Object.entries(stats)) {
+            // 避免 val 為 null、undefined 或非數值（例如 0 也要顯示）
+            if (val != null) {
+                // 格式化數值為 3 位寬度
+                const formattedVal = val.toString().padStart(3, ' ');
+                let statDisplay = `<span class="info-value positive stat-value">${formattedVal}</span>`;
+
+                // 如果存在對應的屬性變化，將其附加在屬性值前面
+                if (equipment.stat_variation) {
+                    const variation = equipment.stat_variation;
+
+                    // 嘗試匹配屬性變化（支援不同的鍵名格式）
+                    let minVal = null;
+                    let maxVal = null;
+
+                    // 直接檢查是否有對應的變化值
+                    if (variation[key] && typeof variation[key] === 'object') {
+                        minVal = variation[key].min;
+                        maxVal = variation[key].max;
+                    }
+
+                    // 如果有變化範圍，將其附加在屬性值前面並靠右對齊
+                    if (minVal !== null && maxVal !== null) {
+                        statDisplay = `<span class="info-value neutral variation-range">(${minVal}~${maxVal})</span> ` + statDisplay;
+                    }
+                }
+
+                statsHtml += `
+                    <div class="info-row">
+                        <span class="info-label">${translateStatName(key)}:</span>
+                        <span class="info-value-container">${statDisplay}</span>
+                    </div>
+                `;
+            }
+        }
+
+        if (statsHtml !== '') {
+            html += `
+                <div class="info-section">
+                    <h3>基礎屬性</h3>
+                    ${statsHtml}
+                </div>
+            `;
+        }
+    }
+
+    // 顯示怪物掉落資訊
+    if (mobData && mobData.length > 0) {
+        let dropsHtml = '';
+
+        mobData.forEach(mob => {
+            const mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            dropsHtml += `
+                <div class="mob-drop-item">
+                    <img src="${mobImageUrl}" alt="${mob.mob_name}" class="mob-image" />
+                    <div class="mob-info">
+                        <div class="mob-name">${mob.mob_name}</div>
+                        <div class="mob-chance">掉落率: ${(mob.chance).toFixed(2)}%</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (dropsHtml !== '') {
+            html += `
+                <div class="info-section">
+                    <h3>怪物掉落</h3>
+                    <div class="mob-drops">${dropsHtml}</div>
+                </div>
+            `;
+        }
+    }
+
+    resultDisplay.innerHTML = html;
 }
 
 // 顯示裝備詳細資訊
