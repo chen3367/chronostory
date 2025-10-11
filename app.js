@@ -337,11 +337,11 @@ function translateType(type) {
 // 翻譯子類型
 function translateSubType(subType) {
     const map = {
-        'Cap': '帽子', 'Coat': '上衣', 'Pants': '褲子', 'Shoes': '鞋子', 'Glove': '手套',
+        'Cap': '帽子', 'Coat': '上衣', 'Pants': '褲裙', 'Shoes': '鞋子', 'Glove': '手套',
         'Cape': '披風', 'Shield': '盾牌', 'Weapon': '武器', 'Ring': '戒指', 'Pendant': '項鍊',
         'Belt': '腰帶', 'Medal': '勳章', 'Shoulder': '肩膀', 'Pocket': '口袋道具',
         'Badge': '徽章', 'Emblem': '紋章', 'Android': '機器人', 'Mechanic': '機甲',
-        'Bits': '零件', 'Face': '臉飾', 'Eye': '眼飾', 'Earring': '耳環'
+        'Bits': '零件', 'Face': '臉飾', 'Eye': '眼飾', 'Earring': '耳環', 'Projectile': '投擲物'
     };
     return map[subType] || subType;
 }
@@ -349,11 +349,17 @@ function translateSubType(subType) {
 // 翻譯類別
 function translateCategory(category) {
     const map = {
-        'Hat': '帽子', 'Top': '上衣', 'Bottom': '褲子', 'Overall': '套服',
+        'Hat': '帽子', 'Top': '上衣', 'Bottom': '褲裙', 'Overall': '套服',
         'Shoes': '鞋子', 'Gloves': '手套', 'Cape': '披風', 'Shield': '盾牌',
         'Weapon': '武器', 'Ring': '戒指', 'Pendant': '項鍊', 'Belt': '腰帶',
         'Medal': '勳章', 'Shoulder': '肩膀', 'Pocket': '口袋道具',
-        'Badge': '徽章', 'Emblem': '紋章'
+        'Badge': '徽章', 'Emblem': '紋章', 'Projectile': '投擲物',
+        'Claw': '拳套', 'Bow': '弓', 'Crossbow': '弩', 'Spear': '槍',
+        'Polearm': '矛', 'Gun': '火槍', 'One Handed Sword': '單手劍',
+        'One Handed Axe': '單手斧', 'One Handed BW': '單手棍',
+        'Two Handed SwordS': '雙手劍', 'Two Handed Axe': '雙手斧',
+        'Two Handed BW': '雙手棍', 'Dagger': '短劍', 'Earring': '耳環',
+        'Staff': '長杖', 'Wand': '短杖'
     };
     return map[category] || category;
 }
