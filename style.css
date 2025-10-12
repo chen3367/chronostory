@@ -88,6 +88,194 @@ main .content {
   color: #555;
 }
 
+/* ===== 首頁介紹區域樣式 ===== */
+.intro-section {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.intro-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 40px;
+  padding: 30px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.main-icon {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.intro-text h2 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.intro-description {
+  color: #6c757d;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+  margin-bottom: 40px;
+}
+
+.feature-card {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  border-color: #2c3e50;
+}
+
+.feature-icon {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.feature-card h3 {
+  color: #2c3e50;
+  margin-bottom: 12px;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.feature-card p {
+  color: #6c757d;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.feature-link {
+  display: inline-block;
+  color: #2c3e50;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  border: 2px solid #2c3e50;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.feature-link:hover {
+  background-color: #2c3e50;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.info-notice {
+  background: linear-gradient(135deg, #e7f3ff 0%, #d6ebff 100%);
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid #b8daff;
+  margin-top: 30px;
+}
+
+.info-notice h3 {
+  color: #0c5460;
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-notice p {
+  color: #0c5460;
+  margin-bottom: 8px;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.info-notice a {
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.info-notice a:hover {
+  text-decoration: underline;
+}
+
+/* ===== 頁面描述樣式 ===== */
+.page-description {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  margin-bottom: 30px;
+}
+
+.page-description p {
+  color: #495057;
+  margin-bottom: 10px;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.data-sources p {
+  margin-bottom: 5px !important;
+  font-size: 0.9rem;
+}
+
+.data-sources a {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.data-sources a:hover {
+  text-decoration: underline;
+}
+
+.translation-tips {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.translation-tips p {
+  color: #856404 !important;
+  margin-bottom: 5px !important;
+  font-size: 0.9rem;
+}
+
+.tips {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 10px;
+  color: #155724 !important;
+  font-size: 0.9rem;
+}
+
 /* ===== Equipment 搜尋區塊 ===== */
 .search-box {
   display: flex;
