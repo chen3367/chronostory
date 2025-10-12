@@ -608,10 +608,10 @@ function displayPotionDetailsWithDrops(iconUrl, itemInfo, mobData) {
         `;
 
         if (itemInfo.potion.duration) {
-            html += `<div class="info-row"><span class="info-label">持續時間:</span><span class="info-value">${itemInfo.potion.duration} 秒</span></div>`;
+            html += `<div class="info-row"><span class="info-label">持續時間:</span><span class="info-value positive stat-value">${itemInfo.potion.duration}</span></div>`;
         }
         if (itemInfo.potion.cooldown) {
-            html += `<div class="info-row"><span class="info-label">冷卻時間:</span><span class="info-value">${itemInfo.potion.cooldown} 秒</span></div>`;
+            html += `<div class="info-row"><span class="info-label">冷卻時間:</span><span class="info-value positive stat-value">${itemInfo.potion.cooldown}</span></div>`;
         }
 
         // 顯示藥水效果屬性
