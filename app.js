@@ -327,15 +327,33 @@ async function fetchMobDropInfo(itemId, iconUrl, itemInfo) {
             } else if (itemInfo.sub_type === 'Potion') {
                 displayPotionDetailsWithDrops(iconUrl, itemInfo, mobData);
             } else {
-                displayItemDetails(iconUrl, itemInfo);
+                displayItemDetails(iconUrl, itemInfo, mobData);
             }
         } else {
             console.log('無法獲取怪物掉落資訊，僅顯示物品資訊');
-            displayItemDetails(iconUrl, itemInfo);
+            // 呼叫各個函數時傳入空的mobData陣列，讓函數自行處理
+            if (itemInfo.type === 'Eqp') {
+                displayEqpDetailsWithDrops(iconUrl, itemInfo, []);
+            } else if (itemInfo.sub_type === 'Scroll') {
+                displayScrollDetailsWithDrops(iconUrl, itemInfo, []);
+            } else if (itemInfo.sub_type === 'Potion') {
+                displayPotionDetailsWithDrops(iconUrl, itemInfo, []);
+            } else {
+                displayItemDetails(iconUrl, itemInfo, []);
+            }
         }
     } catch (error) {
         console.error('獲取怪物掉落資訊錯誤:', error);
-        displayItemDetails(iconUrl, itemInfo);
+        // 呼叫各個函數時傳入空的mobData陣列，讓函數自行處理
+        if (itemInfo.type === 'Eqp') {
+            displayEqpDetailsWithDrops(iconUrl, itemInfo, []);
+        } else if (itemInfo.sub_type === 'Scroll') {
+            displayScrollDetailsWithDrops(iconUrl, itemInfo, []);
+        } else if (itemInfo.sub_type === 'Potion') {
+            displayPotionDetailsWithDrops(iconUrl, itemInfo, []);
+        } else {
+            displayItemDetails(iconUrl, itemInfo, []);
+        }
     }
 }
 
@@ -679,112 +697,51 @@ function displayPotionDetailsWithDrops(iconUrl, itemInfo, mobData) {
 }
 
 // 顯示物品詳細資訊
-function displayItemDetails(iconUrl, itemInfo) {
+function displayItemDetails(iconUrl, itemInfo, mobData) {
     if (!resultDisplay) return;
-
-    const equipment = itemInfo.equipment;
 
     let html = `
         <div class="item-header">
             <img src="${iconUrl}" alt="${itemInfo.item_name}" class="item-icon" />
             <div class="item-title">
                 <h2>${itemInfo.item_name}</h2>
-                <div class="item-type">${translateType(itemInfo.type)} - ${translateSubType(itemInfo.sub_type)}</div>
+                ${itemInfo.item_description ? `<div class="item-description">${itemInfo.item_description}</div>` : ''}
             </div>
         </div>
-        <div class="class-info">
+        <div class="item-info">
     `;
-
-    // 職業標籤顯示 - 顯示所有職業，不顯示標題
-    if (equipment.classes) {
-        const allClasses = [
-            { key: 'beginner', name: '初心者', active: equipment.classes.beginner },
-            { key: 'warrior', name: '劍士', active: equipment.classes.warrior },
-            { key: 'magician', name: '法師', active: equipment.classes.magician },
-            { key: 'bowman', name: '弓箭手', active: equipment.classes.bowman },
-            { key: 'thief', name: '盜賊', active: equipment.classes.thief },
-            { key: 'pirate', name: '海盜', active: equipment.classes.pirate }
-        ];
-
-        const classTags = allClasses.map(cls =>
-            `<span class="class-tag ${cls.active ? 'active' : 'inactive'}">${cls.name}</span>`
-        ).join('');
-
-        html += `<div class="class-tags">${classTags}</div>`;
-    }
-
-    html += `</div><div class="item-info">`;
 
     html += `
         <div class="info-section">
             <h3>基本資訊</h3>
             <div class="info-row"><span class="info-label">物品ID:</span><span class="info-value">${itemInfo.item_id}</span></div>
-            <div class="info-row"><span class="info-label">類別:</span><span class="info-value">${translateCategory(equipment.category)}</span></div>
             <div class="info-row"><span class="info-label">販賣價格:</span><span class="info-value">${itemInfo.sale_price.toLocaleString()} 楓幣</span></div>
             ${itemInfo.untradeable ? '<div class="info-row"><span class="info-label">不可交易</span></div>' : ''}
         </div>
     `;
 
-    if (equipment.requirements) {
-        html += `
-            <div class="info-section">
-                <h3>需求條件</h3>
-                ${equipment.requirements.req_level ? `<div class="info-row"><span class="info-label">等級:</span><span class="info-value">${equipment.requirements.req_level}</span></div>` : ''}
-                ${equipment.requirements.req_str ? `<div class="info-row"><span class="info-label">力量:</span><span class="info-value">${equipment.requirements.req_str}</span></div>` : ''}
-                ${equipment.requirements.req_dex ? `<div class="info-row"><span class="info-label">敏捷:</span><span class="info-value">${equipment.requirements.req_dex}</span></div>` : ''}
-                ${equipment.requirements.req_int ? `<div class="info-row"><span class="info-label">智力:</span><span class="info-value">${equipment.requirements.req_int}</span></div>` : ''}
-                ${equipment.requirements.req_luk ? `<div class="info-row"><span class="info-label">幸運:</span><span class="info-value">${equipment.requirements.req_luk}</span></div>` : ''}
-            </div>
-        `;
-    }
+    // 顯示怪物掉落資訊
+    if (mobData && mobData.length > 0) {
+        let dropsHtml = '';
 
-
-
-    if (equipment.stats && typeof equipment.stats === 'object') {
-        const stats = equipment.stats;
-        let statsHtml = '';
-
-        for (const [key, val] of Object.entries(stats)) {
-            // 避免 val 為 null、undefined 或非數值（例如 0 也要顯示）
-            if (val != null) {
-                // 格式化數值為 3 位寬度
-                const formattedVal = val.toString().padStart(3, ' ');
-                let statDisplay = `<span class="info-value positive stat-value">${formattedVal}</span>`;
-
-                // 如果存在對應的屬性變化，將其附加在屬性值前面
-                if (equipment.stat_variation) {
-                    const variation = equipment.stat_variation;
-
-                    // 嘗試匹配屬性變化（支援不同的鍵名格式）
-                    let minVal = null;
-                    let maxVal = null;
-
-                    // 直接檢查是否有對應的變化值
-                    if (variation[key] && typeof variation[key] === 'object') {
-                        minVal = variation[key].min;
-                        maxVal = variation[key].max;
-                    }
-
-                    // 如果有變化範圍，將其附加在屬性值前面並靠右對齊
-                    if (minVal !== null && maxVal !== null) {
-                        statDisplay = `<span class="info-value neutral variation-range">(${minVal}~${maxVal})</span> ` + statDisplay;
-                    }
-                }
-
-                statsHtml += `
-                    <div class="info-row">
-                        <span class="info-label">${translateStatName(key)}:</span>
-                        <span class="info-value-container">${statDisplay}</span>
+        mobData.forEach(mob => {
+            const mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            dropsHtml += `
+                <div class="mob-drop-item">
+                    <img src="${mobImageUrl}" alt="${mob.mob_name}" class="mob-image" />
+                    <div class="mob-info">
+                        <div class="mob-name">${mob.mob_name}</div>
+                        <div class="mob-chance">掉落率: ${(mob.chance).toFixed(2)}%</div>
                     </div>
-                `;
-            }
-        }
+                </div>
+            `;
+        });
 
-        if (statsHtml !== '') {
+        if (dropsHtml !== '') {
             html += `
                 <div class="info-section">
-                    <h3>基礎屬性</h3>
-                    ${statsHtml}
+                    <h3>怪物掉落</h3>
+                    <div class="mob-drops">${dropsHtml}</div>
                 </div>
             `;
         }
@@ -807,7 +764,7 @@ function translateSubType(subType) {
         'Belt': '腰帶', 'Medal': '勳章', 'Shoulder': '肩膀', 'Pocket': '口袋道具',
         'Badge': '徽章', 'Emblem': '紋章', 'Android': '機器人', 'Mechanic': '機甲',
         'Bits': '零件', 'Face': '臉飾', 'Eye': '眼飾', 'Earring': '耳環', 'Projectile': '投擲物',
-        'Scroll': '卷軸'
+        'Scroll': '卷軸', 'Potion': '藥水'
     };
     return map[subType] || subType;
 }
