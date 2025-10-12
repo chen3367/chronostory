@@ -872,8 +872,10 @@ function toggleTranslateMenu() {
 }
 
 // ===== 物品翻譯功能 =====
-// 儲存物品翻譯字典 {id: name}
+// 儲存物品翻譯字典 {name: [id1, id2, ...]} - 支援相同名稱的多個ID
 const translateItemDictionary = {};
+// 儲存當前選擇的物品ID（解決多個相同名稱的問題）
+let selectedTranslateItemId = null;
 // 儲存物品翻譯建議相關元素
 let translateInput, translateSuggestions, translateButton, translateResultDisplay;
 
@@ -1005,6 +1007,7 @@ function updateTranslateDictionaryAndShowSuggestions(items) {
 
             suggestionItem.addEventListener('click', function() {
                 translateInput.value = item.name;
+                selectedTranslateItemId = item.id; // 儲存選擇的物品ID
                 hideTranslateSuggestions();
                 console.log(`選擇的翻譯物品 - ID: ${item.id}, Name: ${item.name}`);
             });
@@ -1061,121 +1064,82 @@ async function performTranslation(text, mode) {
 
     translateResultDisplay.classList.remove('empty');
 
-    if (mode === 'chToEn') {
-        // 中翻英模式：從字典查找ID，然後呼叫API獲取英文名稱
-        const itemId = getTranslateItemIdByName(text);
+    // 使用選中的物品ID，如果沒有選中的則嘗試從名稱查找
+    let itemId = selectedTranslateItemId;
 
-        if (itemId) {
-            try {
-                translateResultDisplay.innerHTML = `
-                    <div class="translate-result">
-                        <div class="translate-original">原文: ${text}</div>
-                        <div class="translate-translated">翻譯中...</div>
-                    </div>
-                `;
+    // 如果沒有選中的ID，嘗試從名稱查找（備用邏輯）
+    if (!itemId) {
+        itemId = getTranslateItemIdByName(text);
+    }
 
-                const apiUrl = `https://maplestory.io/api/GMS/62/item/${itemId}`;
-                console.log('獲取物品英文名稱:', apiUrl);
-
-                const response = await fetch(apiUrl);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    translateResultDisplay.innerHTML = `
-                        <div class="translate-result">
-                            <div class="translate-original">原文: ${text}</div>
-                            <div class="translate-translated">翻譯結果: ${data.description.name}</div>
-                        </div>
-                    `;
-                    console.log('翻譯成功:', data.name);
-                } else {
-                    translateResultDisplay.innerHTML = `
-                        <div class="translate-result">
-                            <div class="translate-original">原文: ${text}</div>
-                            <div class="translate-translated">翻譯結果: ID: ${itemId} 不存在</div>
-                        </div>
-                    `;
-                    console.log('翻譯失敗: ID不存在');
-                }
-            } catch (error) {
-                console.error('翻譯錯誤:', error);
-                translateResultDisplay.innerHTML = `
-                    <div class="translate-result">
-                        <div class="translate-original">原文: ${text}</div>
-                        <div class="translate-translated">翻譯結果: 翻譯時發生錯誤</div>
-                    </div>
-                `;
-            }
-        } else {
+    if (itemId) {
+        try {
             translateResultDisplay.innerHTML = `
                 <div class="translate-result">
                     <div class="translate-original">原文: ${text}</div>
-                    <div class="translate-translated">翻譯結果: 找不到對應的物品ID</div>
+                    <div class="translate-translated">翻譯中...</div>
                 </div>
             `;
-        }
-    } else if (mode === 'enToCh') {
-        // 英翻中模式：從字典查找ID，然後呼叫GMS/62 API獲取中文名稱
-        const itemId = getTranslateItemIdByName(text);
 
-        if (itemId) {
-            try {
-                translateResultDisplay.innerHTML = `
-                    <div class="translate-result">
-                        <div class="translate-original">原文: ${text}</div>
-                        <div class="translate-translated">翻譯中...</div>
-                    </div>
-                `;
-
-                const apiUrl = `https://maplestory.io/api/TWMS/256/item/${itemId}`;
+            let apiUrl;
+            if (mode === 'chToEn') {
+                // 中翻英模式：使用GMS API獲取英文名稱
+                apiUrl = `https://maplestory.io/api/GMS/62/item/${itemId}`;
+                console.log('獲取物品英文名稱:', apiUrl);
+            } else if (mode === 'enToCh') {
+                // 英翻中模式：使用TWMS API獲取中文名稱
+                apiUrl = `https://maplestory.io/api/TWMS/256/item/${itemId}`;
                 console.log('獲取物品中文名稱:', apiUrl);
-
-                const response = await fetch(apiUrl);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    translateResultDisplay.innerHTML = `
-                        <div class="translate-result">
-                            <div class="translate-original">原文: ${text}</div>
-                            <div class="translate-translated">翻譯結果: ${data.description.name}</div>
-                        </div>
-                    `;
-                    console.log('翻譯成功:', data.name);
-                } else {
-                    translateResultDisplay.innerHTML = `
-                        <div class="translate-result">
-                            <div class="translate-original">原文: ${text}</div>
-                            <div class="translate-translated">翻譯結果: ID: ${itemId} 不存在</div>
-                        </div>
-                    `;
-                    console.log('翻譯失敗: ID不存在');
-                }
-            } catch (error) {
-                console.error('翻譯錯誤:', error);
+            } else {
                 translateResultDisplay.innerHTML = `
                     <div class="translate-result">
                         <div class="translate-original">原文: ${text}</div>
-                        <div class="translate-translated">翻譯結果: 翻譯時發生錯誤</div>
+                        <div class="translate-translated">翻譯結果: 不支援的翻譯模式</div>
                     </div>
                 `;
+                return;
             }
-        } else {
+
+            const response = await fetch(apiUrl);
+
+            if (response.ok) {
+                const data = await response.json();
+                translateResultDisplay.innerHTML = `
+                    <div class="translate-result">
+                        <div class="translate-original">原文: ${text}</div>
+                        <div class="translate-translated">翻譯結果: ${data.description.name}</div>
+                    </div>
+                `;
+                console.log('翻譯成功:', data.name);
+            } else {
+                translateResultDisplay.innerHTML = `
+                    <div class="translate-result">
+                        <div class="translate-original">原文: ${text}</div>
+                        <div class="translate-translated">翻譯結果: ID: ${itemId} 不存在</div>
+                    </div>
+                `;
+                console.log('翻譯失敗: ID不存在');
+            }
+        } catch (error) {
+            console.error('翻譯錯誤:', error);
             translateResultDisplay.innerHTML = `
                 <div class="translate-result">
                     <div class="translate-original">原文: ${text}</div>
-                    <div class="translate-translated">翻譯結果: 找不到對應的物品ID</div>
+                    <div class="translate-translated">翻譯結果: 翻譯時發生錯誤</div>
                 </div>
             `;
         }
     } else {
-        // 不支援的模式
         translateResultDisplay.innerHTML = `
             <div class="translate-result">
                 <div class="translate-original">原文: ${text}</div>
-                <div class="translate-translated">翻譯結果: 不支援的翻譯模式</div>
+                <div class="translate-translated">翻譯結果: 找不到對應的物品ID</div>
             </div>
         `;
     }
+
+    // 清空選中的ID，準備下次選擇
+    selectedTranslateItemId = null;
 }
 
 // 根據名稱獲取翻譯物品ID
@@ -1208,5 +1172,7 @@ function clearTranslateInput() {
         translateResultDisplay.classList.add('empty');
         translateResultDisplay.innerHTML = '';
     }
+    // 清空選中的物品ID
+    selectedTranslateItemId = null;
     hideTranslateSuggestions();
 }
