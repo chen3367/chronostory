@@ -324,6 +324,8 @@ async function fetchMobDropInfo(itemId, iconUrl, itemInfo) {
                 displayEqpDetailsWithDrops(iconUrl, itemInfo, mobData);
             } else if (itemInfo.sub_type === 'Scroll') {
                 displayScrollDetailsWithDrops(iconUrl, itemInfo, mobData);
+            } else if (itemInfo.sub_type === 'Potion') {
+                displayPotionDetailsWithDrops(iconUrl, itemInfo, mobData);
             } else {
                 displayItemDetails(iconUrl, itemInfo);
             }
@@ -543,6 +545,106 @@ function displayScrollDetailsWithDrops(iconUrl, itemInfo, mobData) {
                     </div>
                 `;
             }
+        }
+    }
+
+    // 顯示怪物掉落資訊
+    if (mobData && mobData.length > 0) {
+        let dropsHtml = '';
+
+        mobData.forEach(mob => {
+            const mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            dropsHtml += `
+                <div class="mob-drop-item">
+                    <img src="${mobImageUrl}" alt="${mob.mob_name}" class="mob-image" />
+                    <div class="mob-info">
+                        <div class="mob-name">${mob.mob_name}</div>
+                        <div class="mob-chance">掉落率: ${(mob.chance).toFixed(2)}%</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        if (dropsHtml !== '') {
+            html += `
+                <div class="info-section">
+                    <h3>怪物掉落</h3>
+                    <div class="mob-drops">${dropsHtml}</div>
+                </div>
+            `;
+        }
+    }
+
+    resultDisplay.innerHTML = html;
+}
+
+// 顯示藥水詳細資訊（包含怪物掉落資訊）
+function displayPotionDetailsWithDrops(iconUrl, itemInfo, mobData) {
+    let html = `
+        <div class="item-header">
+            <img src="${iconUrl}" alt="${itemInfo.item_name}" class="item-icon" />
+            <div class="item-title">
+                <h2>${itemInfo.item_name}</h2>
+                <div class="item-type">${translateType(itemInfo.type)} - ${translateSubType(itemInfo.sub_type)}</div>
+            </div>
+        </div>
+        <div class="item-info">
+    `;
+
+    html += `
+        <div class="info-section">
+            <h3>基本資訊</h3>
+            <div class="info-row"><span class="info-label">物品ID:</span><span class="info-value">${itemInfo.item_id}</span></div>
+            <div class="info-row"><span class="info-label">販賣價格:</span><span class="info-value">${itemInfo.sale_price.toLocaleString()} 楓幣</span></div>
+            ${itemInfo.untradeable ? '<div class="info-row"><span class="info-label">不可交易</span></div>' : ''}
+        </div>
+    `;
+
+    // 藥水效果
+    if (itemInfo.potion) {
+        html += `
+            <div class="info-section">
+                <h3>藥水效果</h3>
+        `;
+
+        if (itemInfo.potion.duration) {
+            html += `<div class="info-row"><span class="info-label">持續時間:</span><span class="info-value">${itemInfo.potion.duration} 秒</span></div>`;
+        }
+        if (itemInfo.potion.cooldown) {
+            html += `<div class="info-row"><span class="info-label">冷卻時間:</span><span class="info-value">${itemInfo.potion.cooldown} 秒</span></div>`;
+        }
+
+        // 顯示藥水效果屬性
+        if (itemInfo.potion.stats && typeof itemInfo.potion.stats === 'object') {
+            const stats = itemInfo.potion.stats;
+
+            for (const [key, val] of Object.entries(stats)) {
+                // 只顯示非 null 的值
+                if (val != null) {
+                    // 檢查是否為百分比相關屬性（val為1或浮點數）
+                    let displayVal;
+                    if ((val === 1 || (typeof val === 'number' && val % 1 !== 0)) && (key === 'hp' || key === 'mp')) {
+                        // 轉換為百分比顯示格式
+                        if (typeof val === 'number' && val % 1 !== 0) {
+                            displayVal = `${Math.round(val * 100)}%`;
+                        } else {
+                            // val為1的情況，顯示為100%
+                            displayVal = '100%';
+                        }
+                    } else {
+                        displayVal = val
+                    }
+
+                    html += `
+                        <div class="info-row">
+                            <span class="info-label">${translateStatName(key)}:</span>
+                            <span class="info-value positive stat-value">${displayVal}</span>
+                        </div>
+                    `;
+                }
+            }
+
+        html += `</div>`;
         }
     }
 
