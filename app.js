@@ -969,7 +969,18 @@ function displayScrollDetailsWithDrops(iconUrl, itemInfo, mobData) {
         let dropsHtml = '';
 
         mobData.forEach(mob => {
-            const mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            // 優先檢查sprite_override.url
+            let mobImageUrl;
+            if (mob.sprite_override && mob.sprite_override.url) {
+                let spriteUrl = mob.sprite_override.url;
+                if (!spriteUrl.startsWith('http')) {
+                    spriteUrl = 'https://chronostory.onrender.com' + spriteUrl;
+                }
+                mobImageUrl = spriteUrl;
+            } else {
+                mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            }
+
             dropsHtml += `
                 <div class="mob-drop-item">
                     <img src="${mobImageUrl}" alt="${mob.mob_name}" class="mob-image" />
@@ -1069,7 +1080,18 @@ function displayPotionDetailsWithDrops(iconUrl, itemInfo, mobData) {
         let dropsHtml = '';
 
         mobData.forEach(mob => {
-            const mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            // 優先檢查sprite_override.url
+            let mobImageUrl;
+            if (mob.sprite_override && mob.sprite_override.url) {
+                let spriteUrl = mob.sprite_override.url;
+                if (!spriteUrl.startsWith('http')) {
+                    spriteUrl = 'https://chronostory.onrender.com' + spriteUrl;
+                }
+                mobImageUrl = spriteUrl;
+            } else {
+                mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            }
+
             dropsHtml += `
                 <div class="mob-drop-item">
                     <img src="${mobImageUrl}" alt="${mob.mob_name}" class="mob-image" />
@@ -1123,7 +1145,18 @@ function displayItemDetails(iconUrl, itemInfo, mobData) {
         let dropsHtml = '';
 
         mobData.forEach(mob => {
-            const mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            // 優先檢查sprite_override.url
+            let mobImageUrl;
+            if (mob.sprite_override && mob.sprite_override.url) {
+                let spriteUrl = mob.sprite_override.url;
+                if (!spriteUrl.startsWith('http')) {
+                    spriteUrl = 'https://chronostory.onrender.com' + spriteUrl;
+                }
+                mobImageUrl = spriteUrl;
+            } else {
+                mobImageUrl = `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
+            }
+
             dropsHtml += `
                 <div class="mob-drop-item">
                     <img src="${mobImageUrl}" alt="${mob.mob_name}" class="mob-image" />
