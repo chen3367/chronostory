@@ -31,7 +31,26 @@
     <main>
       <h1>怪物中英翻譯</h1>
       <div class="content">
-        <p>怪物翻譯功能開發中...</p>
+        <p>中翻英如果有多個相同結果 選第一個就好，翻譯失敗再往後選</p><br>
+        <h2>翻譯模式</h2>
+        <div class="translate-mode">
+          <button id="chToEnBtn" class="mode-btn active">中翻英</button>
+          <button id="enToChBtn" class="mode-btn">英翻中</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="search-wrapper" style="position: relative;">
+          <input
+            type="text"
+            id="translateInput"
+            placeholder="請輸入中文進行翻譯..."
+            autocomplete="off"
+          />
+          <div id="translateSuggestions"></div>
+        </div>
+        <button id="translateButton" class="search-btn">翻譯</button>
+        <div id="translateResultDisplay" class="result-display empty"></div>
       </div>
     </main>
   </div>
