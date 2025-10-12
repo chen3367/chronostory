@@ -105,8 +105,8 @@ async function searchItem(searchTerm) {
                 }
             }
 
-            if (!response || !response.ok) {
-                throw new Error('所有代理服務都無法使用');
+            if (!response || !response.ok || (response.status >= 400 && response.status < 500)) {
+                throw new Error(`請求失敗: ${response ? response.status : '無回應'}`);
             }
 
             // 只需要處理 response.items
@@ -344,8 +344,8 @@ async function searchMob(searchTerm)  {
                 }
             }
 
-            if (!response || !response.ok) {
-                throw new Error('所有代理服務都無法使用');
+            if (!response || !response.ok || (response.status >= 400 && response.status < 500)) {
+                throw new Error(`請求失敗: ${response ? response.status : '無回應'}`);
             }
 
             // 只需要處理 response.mobs
