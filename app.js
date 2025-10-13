@@ -195,7 +195,12 @@ function updateMobDictionaryAndShowSuggestions(mobs) {
     suggestionsDiv.innerHTML = '';
 
     if (!mobs || mobs.length === 0) {
-        showNoResults();
+        // 在怪物相關頁面都顯示"找不到相關怪物"
+        if (window.location.pathname.includes('mob.html') || window.location.pathname.includes('translate_mob.html')) {
+            showMobNoResults();
+        } else {
+            showNoResults();
+        }
         return;
     }
 
@@ -248,6 +253,12 @@ function showLoading() {
 // 顯示無結果
 function showNoResults() {
     suggestionsDiv.innerHTML = '<div class="no-results">找不到相關物品</div>';
+    showSuggestions();
+}
+
+// 顯示怪物無結果
+function showMobNoResults() {
+    suggestionsDiv.innerHTML = '<div class="no-results">找不到相關怪物</div>';
     showSuggestions();
 }
 
@@ -1532,7 +1543,11 @@ function showTranslateLoading() {
 // 顯示翻譯無結果
 function showTranslateNoResults() {
     if (translateSuggestions) {
-        translateSuggestions.innerHTML = '<div class="no-results">找不到相關物品</div>';
+        // 在怪物翻譯頁面顯示"找不到相關怪物"，在物品翻譯頁面顯示"找不到相關物品"
+        const noResultsText = window.location.pathname.includes('translate_mob.html')
+            ? '找不到相關怪物'
+            : '找不到相關物品';
+        translateSuggestions.innerHTML = `<div class="no-results">${noResultsText}</div>`;
         showTranslateSuggestions();
     }
 }
