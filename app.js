@@ -412,7 +412,7 @@ async function fetchItemDetails(itemId) {
     try {
         // 獲取物品資訊
         const infoUrl = `https://chronostory.onrender.com/api/item-info?itemId=${itemId}`;
-        const infoProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(infoUrl);
+        const infoProxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(infoUrl);
         const infoResponse = await fetch(infoProxyUrl);
 
         if (!infoResponse.ok) {
@@ -445,7 +445,7 @@ async function fetchItemDetails(itemId) {
                 console.log('第一個圖標來源失敗，嘗試備用來源，狀態碼:', iconResponse.status);
                 // 第一個圖標來源失敗，使用備用圖標
                 const fallbackIconUrl = `https://chronostory.onrender.com/sprites/${itemId}.png`;
-                const fallbackIconProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(fallbackIconUrl);
+                const fallbackIconProxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(fallbackIconUrl);
 
                 try {
                     const fallbackResponse = await fetch(fallbackIconProxyUrl);
@@ -485,7 +485,7 @@ async function fetchMobDetails(mobId) {
     try {
         // 獲取怪物資訊
         const infoUrl = `https://chronostory.onrender.com/api/mob-info?mobId=${mobId}`;
-        const infoProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(infoUrl);
+        const infoProxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(infoUrl);
         const infoResponse = await fetch(infoProxyUrl);
 
         if (!infoResponse.ok) {
@@ -535,7 +535,7 @@ async function fetchMobDetails(mobId) {
 async function fetchMobDropInfo(itemId, iconUrl, itemInfo) {
     try {
         const mobSearchUrl = `https://chronostory.onrender.com/api/mob-search?itemId=${itemId}`;
-        const mobProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(mobSearchUrl);
+        const mobProxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(mobSearchUrl);
         const mobResponse = await fetch(mobProxyUrl);
 
         if (mobResponse.ok) {
@@ -584,7 +584,7 @@ async function fetchMobDropInfo(itemId, iconUrl, itemInfo) {
 async function fetchMobDropData(mobId, iconUrl, mobInfo) {
     try {
         const dropSearchUrl = `https://chronostory.onrender.com/api/mob-drops?mobId=${mobId}`;
-        const dropProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(dropSearchUrl);
+        const dropProxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(dropSearchUrl);
         const dropResponse = await fetch(dropProxyUrl);
 
         if (dropResponse.ok) {
@@ -710,7 +710,7 @@ function displayMobDetailsWithDrops(iconUrl, mobInfo, dropData) {
 async function fetchMobDropInfo(itemId, iconUrl, itemInfo) {
     try {
         const mobSearchUrl = `https://chronostory.onrender.com/api/mob-search?itemId=${itemId}`;
-        const mobProxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(mobSearchUrl);
+        const mobProxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(mobSearchUrl);
         const mobResponse = await fetch(mobProxyUrl);
 
         if (mobResponse.ok) {
