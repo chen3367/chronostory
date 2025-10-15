@@ -67,43 +67,26 @@ async function searchItem(searchTerm) {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            console.log(`搜尋嘗試 ${attempt + 1}/${maxRetries + 1}`);
 
             const apiUrl = `https://chronostory.onrender.com/api/unified-search`;
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(apiUrl);
 
-            // 嘗試多個代理服務
-            const proxies = [
-                'https://corsproxy.io/?' + encodeURIComponent(apiUrl),
-                'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl),
-                'https://cors-anywhere.herokuapp.com/' + apiUrl
-            ];
 
-            let response;
-            let data;
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: searchTerm
+                })
+            });
 
-            for (const proxyUrl of proxies) {
-                try {
-                    console.log('嘗試代理服務:', proxyUrl);
-                    response = await fetch(proxyUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            query: searchTerm
-                        })
-                    });
-
-                    if (response.ok) {
-                        data = await response.json();
-                        console.log('成功使用代理服務:', proxyUrl);
-                        break;
-                    }
-                } catch (error) {
-                    console.log('代理服務失敗:', proxyUrl, error);
-                    continue;
-                }
+            if (!response.ok) {
+                throw new Error(`請求失敗: ${response.status}`);
             }
+
+            const data = await response.json();
 
             if (!response || !response.ok || (response.status >= 400 && response.status < 500)) {
                 throw new Error(`請求失敗: ${response ? response.status : '無回應'}`);
@@ -184,8 +167,6 @@ function updateDictionaryAndShowSuggestions(items) {
     });
 
     showSuggestions();
-    console.log('當前物品字典:', equipmentDictionary);
-    console.log('當前 sprite 字典:', spriteDictionary);
 }
 
 // 更新怪物字典並顯示建議
@@ -317,43 +298,25 @@ async function searchMob(searchTerm)  {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            console.log(`搜尋嘗試 ${attempt + 1}/${maxRetries + 1}`);
-
             const apiUrl = `https://chronostory.onrender.com/api/unified-search`;
 
-            // 嘗試多個代理服務
-            const proxies = [
-                'https://corsproxy.io/?' + encodeURIComponent(apiUrl),
-                'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl),
-                'https://cors-anywhere.herokuapp.com/' + apiUrl
-            ];
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(apiUrl);
 
-            let response;
-            let data;
+            const response = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: searchTerm
+                })
+            });
 
-            for (const proxyUrl of proxies) {
-                try {
-                    console.log('嘗試代理服務:', proxyUrl);
-                    response = await fetch(proxyUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            query: searchTerm
-                        })
-                    });
-
-                    if (response.ok) {
-                        data = await response.json();
-                        console.log('成功使用代理服務:', proxyUrl);
-                        break;
-                    }
-                } catch (error) {
-                    console.log('代理服務失敗:', proxyUrl, error);
-                    continue;
-                }
+            if (!response.ok) {
+                throw new Error(`請求失敗: ${response.status}`);
             }
+
+            const data = await response.json();
 
             if (!response || !response.ok || (response.status >= 400 && response.status < 500)) {
                 throw new Error(`請求失敗: ${response ? response.status : '無回應'}`);
