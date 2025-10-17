@@ -465,8 +465,7 @@ function displayEqpDetailsWithDrops(iconUrl, itemInfo, mobData) {
     let html = generateItemHeaderHTML(iconUrl, itemInfo);
     html += generateEquipmentClassHTML(equipment);
     html += generateItemBasicInfoHTML(itemInfo, equipment);
-    html += generateEquipmentRequirementsHTML(equipment);
-    html += generateEquipmentStatsHTML(equipment);
+    html += generateEquipmentReqStatHTML(equipment);
     html += generateMobDropsHTML(mobData);
 
     resultDisplay.innerHTML = html;
@@ -560,10 +559,11 @@ function generateItemBasicInfoHTML(itemInfo, item) {
 }
 
 // 生成裝備需求HTML - Generate Equipment Requirements HTML
-function generateEquipmentRequirementsHTML(equipment) {
+function generateEquipmentReqStatHTML(equipment) {
     if (!equipment || !equipment.requirements) return '';
 
     const requirements = equipment.requirements;
+    let html = ''
     const reqHtml = [];
 
     if (requirements.req_level) reqHtml.push(`<div class="info-row"><span class="info-label">等級:</span><span class="info-value">${requirements.req_level}</span></div>`);
@@ -572,17 +572,15 @@ function generateEquipmentRequirementsHTML(equipment) {
     if (requirements.req_int) reqHtml.push(`<div class="info-row"><span class="info-label">智力:</span><span class="info-value">${requirements.req_int}</span></div>`);
     if (requirements.req_luk) reqHtml.push(`<div class="info-row"><span class="info-label">幸運:</span><span class="info-value">${requirements.req_luk}</span></div>`);
 
-    return reqHtml.length > 0 ? `
-        <div class="info-section">
-            <h3>需求條件</h3>
-            ${reqHtml.join('')}
-        </div>
-    ` : '';
-}
+    if (reqHtml.length > 0) {
+        html += `
+            <div class="info-section">
+                <h3>需求條件</h3>
+                ${reqHtml.join('')}
+        `
+    }
 
-// 生成裝備屬性HTML - Generate Equipment Stats HTML
-function generateEquipmentStatsHTML(equipment) {
-    if (!equipment || !equipment.stats || typeof equipment.stats !== 'object') return '';
+    if (!equipment || !equipment.stats || typeof equipment.stats !== 'object') return html + "</div>";
 
     const stats = equipment.stats;
     let statsHtml = '';
@@ -609,12 +607,18 @@ function generateEquipmentStatsHTML(equipment) {
         }
     }
 
-    return statsHtml !== '' ? `
-        <div class="info-section">
-            <h3>能力值</h3>
-            ${statsHtml}
-        </div>
-    ` : '';
+    if (statsHtml && html) {
+        html += `
+                <br>
+                <h3>能力值</h3>
+                ${statsHtml}
+            </div>
+        `
+    } else if (html){
+        html += "</div>"
+    }
+
+    return html
 }
 
 
