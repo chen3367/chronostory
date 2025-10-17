@@ -706,8 +706,9 @@ function generateMobDropsHTML(mobData) {
         `;
     }).join('');
 
+    const sectionClass = mobData.length > 6 ? 'info-section drops-section' : 'info-section';
     return `
-        <div class="info-section">
+        <div class="${sectionClass}">
             <h3>怪物掉落</h3>
             <div class="mob-drops">${dropsHtml}</div>
         </div>

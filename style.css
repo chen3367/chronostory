@@ -461,6 +461,10 @@ main .content {
   border-radius: 6px;
 }
 
+.info-section.drops-section {
+  grid-column: span 2;
+}
+
 .info-section h3 {
   color: #2c3e50;
   margin-bottom: 10px;
