@@ -12,6 +12,13 @@ let lastSearchResponse = null;       // 最後一次搜尋的API回應
 let debounceTimer;                  // 防抖計時器
 const debounceDelay = 300;          // 防抖延遲時間 (ms)
 
+// 快取系統變數 - Cache System Variables
+let searchCache = new Map();        // 搜尋結果快取：搜尋詞 -> 搜尋結果
+let mobDetailsCache = new Map();    // 怪物詳情快取：怪物ID -> 詳情資料
+let mobDropCache = new Map();       // 怪物掉落資料快取：怪物ID -> 掉落資料
+let mobIconCache = new Map();       // 怪物圖標快取：怪物ID -> 圖標URL
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 快取過期時間：24小時
+
 // ===== 初始化設定 - Initialization =====
 document.addEventListener('DOMContentLoaded', function() {
     initializeSearch();
@@ -23,6 +30,106 @@ function initializeSearch() {
     if (!searchInput) return;
 
     console.log('初始化怪物搜尋功能 - Initializing mob search functionality');
+
+    // 初始化快取系統
+    initializeCacheSystem();
+
+    // 定期清理過期快取（每小時執行一次）
+    setInterval(cleanExpiredCache, 60 * 60 * 1000);
+
+
+
+
+}
+
+// 初始化快取系統 - Initialize Cache System
+function initializeCacheSystem() {
+    console.log('初始化快取系統 - Initializing cache system');
+
+    // 檢查瀏覽器是否支援本地儲存
+    if (typeof Storage !== 'undefined') {
+        // 嘗試從本地儲存載入快取資料
+        loadCacheFromStorage();
+    }
+
+    // 監聽頁面卸載事件，儲存快取到本地儲存
+    window.addEventListener('beforeunload', saveCacheToStorage);
+
+    // 監聽可見性變化，當頁面變為可見時檢查快取
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    console.log('快取系統初始化完成');
+}
+
+// 從本地儲存載入快取 - Load Cache from Storage
+function loadCacheFromStorage() {
+    try {
+        const cachedData = localStorage.getItem('mobSearchCache');
+        if (cachedData) {
+            const cacheData = JSON.parse(cachedData);
+
+            // 檢查快取資料是否過期（超過24小時）
+            if (Date.now() - cacheData.timestamp < CACHE_EXPIRY) {
+                if (cacheData.searchCache) {
+                    for (const [key, value] of Object.entries(cacheData.searchCache)) {
+                        searchCache.set(key, value);
+                    }
+                }
+
+                if (cacheData.mobDetailsCache) {
+                    for (const [key, value] of Object.entries(cacheData.mobDetailsCache)) {
+                        mobDetailsCache.set(key, value);
+                    }
+                }
+
+                if (cacheData.mobDropCache) {
+                    for (const [key, value] of Object.entries(cacheData.mobDropCache)) {
+                        mobDropCache.set(key, value);
+                    }
+                }
+
+                if (cacheData.mobIconCache) {
+                    for (const [key, value] of Object.entries(cacheData.mobIconCache)) {
+                        mobIconCache.set(key, value);
+                    }
+                }
+
+                console.log('已從本地儲存載入快取資料');
+            } else {
+                console.log('本地儲存的快取資料已過期，已清除');
+                localStorage.removeItem('mobSearchCache');
+            }
+        }
+    } catch (error) {
+        console.error('載入快取資料失敗:', error);
+    }
+}
+
+// 儲存快取到本地儲存 - Save Cache to Storage
+function saveCacheToStorage() {
+    try {
+        const cacheData = {
+            searchCache: Object.fromEntries(searchCache),
+            mobDetailsCache: Object.fromEntries(mobDetailsCache),
+            mobDropCache: Object.fromEntries(mobDropCache),
+            mobIconCache: Object.fromEntries(mobIconCache),
+            timestamp: Date.now()
+        };
+
+        localStorage.setItem('mobSearchCache', JSON.stringify(cacheData));
+        console.log('快取資料已儲存到本地儲存');
+    } catch (error) {
+        console.error('儲存快取資料失敗:', error);
+    }
+}
+
+// 處理頁面可見性變化 - Handle Visibility Change
+function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+        // 頁面變為可見時，清理過期快取並檢查本地儲存
+        cleanExpiredCache();
+        loadCacheFromStorage();
+    }
 }
 
 // 初始化事件監聽器 - Initialize Event Listeners
@@ -86,9 +193,19 @@ async function handleSearchButtonClick() {
 
 // ===== 搜尋功能 - Search Functions =====
 
-// 搜尋怪物函數（帶重試機制） - Search Mob Function with Retry Mechanism
+// 搜尋怪物函數（帶重試機制和快取系統） - Search Mob Function with Retry Mechanism and Cache System
 async function searchMob(searchTerm) {
     showLoading();
+
+    // 檢查快取中是否有搜尋結果
+    const cachedResult = getCachedSearchResult(searchTerm);
+    if (cachedResult) {
+        console.log(`使用快取搜尋結果: ${searchTerm}`);
+        updateMobDictionaryAndShowSuggestions(cachedResult.mobs);
+        return;
+    }
+
+    console.log(`快取中未找到 "${searchTerm}"，進行API搜尋`);
 
     const maxRetries = 2;
     let lastError;
@@ -99,8 +216,12 @@ async function searchMob(searchTerm) {
 
             if (response.ok) {
                 const data = await response.json();
+
+                // 將搜尋結果儲存到快取
+                setCachedSearchResult(searchTerm, data);
+
                 updateMobDictionaryAndShowSuggestions(data.mobs || []);
-                console.log(`搜尋成功完成於嘗試 ${attempt + 1}`);
+                console.log(`搜尋成功完成於嘗試 ${attempt + 1}，結果已快取`);
                 return;
             } else {
                 throw new Error(`請求失敗: ${response.status}`);
@@ -234,6 +355,15 @@ async function fetchMobDetails(mobId) {
 
 // 獲取怪物資訊 - Fetch Mob Info
 async function fetchMobInfo(mobId) {
+    // 檢查快取中是否有怪物資訊
+    const cachedInfo = getCachedMobInfo(mobId);
+    if (cachedInfo) {
+        console.log(`使用快取怪物資訊: ${mobId}`);
+        return cachedInfo;
+    }
+
+    console.log(`快取中未找到怪物資訊 "${mobId}"，進行API搜尋`);
+
     const infoUrl = `https://chronostory.onrender.com/api/mob-info?mobId=${mobId}`;
     const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(infoUrl);
 
@@ -244,6 +374,10 @@ async function fetchMobInfo(mobId) {
 
     const mobInfo = await response.json();
     console.log('成功獲取怪物資訊:', mobInfo);
+
+    // 將怪物資訊儲存到快取
+    setCachedMobInfo(mobId, mobInfo);
+
     return mobInfo;
 }
 
@@ -282,6 +416,16 @@ async function getMobIconUrl(mobId) {
 
 // 獲取怪物掉落資訊 - Fetch Mob Drop Data
 async function fetchMobDropData(mobId, iconUrl, mobInfo) {
+    // 檢查快取中是否有怪物掉落資訊
+    const cachedDropData = getCachedMobDropData(mobId);
+    if (cachedDropData) {
+        console.log(`使用快取怪物掉落資訊: ${mobId}`);
+        displayMobDetailsWithDrops(iconUrl, mobInfo, cachedDropData);
+        return;
+    }
+
+    console.log(`快取中未找到怪物掉落資訊 "${mobId}"，進行API搜尋`);
+
     try {
         const dropSearchUrl = `https://chronostory.onrender.com/api/mob-drops?mobId=${mobId}`;
         const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(dropSearchUrl);
@@ -290,6 +434,10 @@ async function fetchMobDropData(mobId, iconUrl, mobInfo) {
         if (response.ok) {
             const dropData = await response.json();
             console.log('成功獲取怪物掉落物品資訊:', dropData);
+
+            // 將怪物掉落資訊儲存到快取
+            setCachedMobDropData(mobId, dropData);
+
             displayMobDetailsWithDrops(iconUrl, mobInfo, dropData);
         } else {
             console.log('無法獲取怪物掉落物品資訊，僅顯示怪物資訊');
@@ -443,6 +591,226 @@ function getItemIconUrl(item) {
     return `https://maplestory.io/api/GMS/62/item/${item.item_id}/icon`;
 }
 
+// ===== 快取顯示函數 - Cache Display Functions =====
+
+// 顯示快取狀態區域 - Show Cache Status
+function showCacheStatus() {
+    const cacheStatus = document.getElementById('cacheStatus');
+    const cacheDetails = document.getElementById('cacheDetails');
+
+    if (!cacheStatus || !cacheDetails) return;
+
+    const stats = getCacheStats();
+    const totalSize = stats.totalCacheSize;
+
+    if (totalSize > 0) {
+        cacheStatus.style.display = 'block';
+        cacheDetails.textContent = `搜尋快取: ${stats.searchCache} | 詳情快取: ${stats.mobDetailsCache} | 圖標快取: ${stats.mobIconCache} | 總計: ${totalSize}`;
+    } else {
+        cacheStatus.style.display = 'none';
+    }
+}
+
+// 顯示快取統計 - Show Cache Statistics
+function showCacheStats() {
+    const stats = getCacheStats();
+    const cacheDetails = [
+        `搜尋結果快取: ${stats.searchCache} 項`,
+        `怪物詳情快取: ${stats.mobDetailsCache} 項`,
+        `怪物掉落快取: ${stats.mobDropCache} 項`,
+        `怪物圖標快取: ${stats.mobIconCache} 項`,
+        `總計: ${stats.totalCacheSize} 項快取`
+    ];
+
+    alert(`快取統計:\n${cacheDetails.join('\n')}`);
+}
+
+// ===== 快取管理函數 - Cache Management Functions =====
+
+// 獲取快取中的搜尋結果 - Get Cached Search Result
+function getCachedSearchResult(searchTerm) {
+    const cached = searchCache.get(searchTerm);
+    if (!cached) return null;
+
+    // 檢查快取是否過期
+    if (Date.now() - cached.timestamp > CACHE_EXPIRY) {
+        searchCache.delete(searchTerm);
+        console.log(`快取過期，已刪除: ${searchTerm}`);
+        return null;
+    }
+
+    return cached.data;
+}
+
+// 設定快取搜尋結果 - Set Cached Search Result
+function setCachedSearchResult(searchTerm, data) {
+    searchCache.set(searchTerm, {
+        data: data,
+        timestamp: Date.now()
+    });
+    console.log(`已快取搜尋結果: ${searchTerm}`);
+}
+
+// 清理過期的快取 - Clean Expired Cache
+function cleanExpiredCache() {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const [key, value] of searchCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+            searchCache.delete(key);
+            cleanedCount++;
+        }
+    }
+
+    for (const [key, value] of mobDetailsCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+            mobDetailsCache.delete(key);
+            cleanedCount++;
+        }
+    }
+
+    for (const [key, value] of mobDropCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+            mobDropCache.delete(key);
+            cleanedCount++;
+        }
+    }
+
+    for (const [key, value] of mobIconCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+            mobIconCache.delete(key);
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`已清理 ${cleanedCount} 個過期快取項目`);
+    }
+}
+
+// 獲取快取統計資訊 - Get Cache Statistics
+function getCacheStats() {
+    return {
+        searchCache: searchCache.size,
+        mobDetailsCache: mobDetailsCache.size,
+        mobDropCache: mobDropCache.size,
+        mobIconCache: mobIconCache.size,
+        totalCacheSize: searchCache.size + mobDetailsCache.size + mobDropCache.size + mobIconCache.size
+    };
+}
+
+// 獲取快取中的怪物資訊 - Get Cached Mob Info
+function getCachedMobInfo(mobId) {
+    const cached = mobDetailsCache.get(mobId);
+    if (!cached) return null;
+
+    // 檢查快取是否過期
+    if (Date.now() - cached.timestamp > CACHE_EXPIRY) {
+        mobDetailsCache.delete(mobId);
+        console.log(`怪物資訊快取過期，已刪除: ${mobId}`);
+        return null;
+    }
+
+    return cached.data;
+}
+
+// 設定快取怪物資訊 - Set Cached Mob Info
+function setCachedMobInfo(mobId, data) {
+    mobDetailsCache.set(mobId, {
+        data: data,
+        timestamp: Date.now()
+    });
+    console.log(`已快取怪物資訊: ${mobId}`);
+}
+
+// 獲取快取中的怪物掉落資料 - Get Cached Mob Drop Data
+function getCachedMobDropData(mobId) {
+    const cached = mobDropCache.get(mobId);
+    if (!cached) return null;
+
+    // 檢查快取是否過期
+    if (Date.now() - cached.timestamp > CACHE_EXPIRY) {
+        mobDropCache.delete(mobId);
+        console.log(`怪物掉落資料快取過期，已刪除: ${mobId}`);
+        return null;
+    }
+
+    return cached.data;
+}
+
+// 設定快取怪物掉落資料 - Set Cached Mob Drop Data
+function setCachedMobDropData(mobId, data) {
+    mobDropCache.set(mobId, {
+        data: data,
+        timestamp: Date.now()
+    });
+    console.log(`已快取怪物掉落資料: ${mobId}`);
+}
+
+
+
+// 匯出快取資料（用於備份或遷移） - Export Cache Data
+function exportCacheData() {
+    const cacheData = {
+        searchCache: Object.fromEntries(searchCache),
+        mobDetailsCache: Object.fromEntries(mobDetailsCache),
+        mobDropCache: Object.fromEntries(mobDropCache),
+        mobIconCache: Object.fromEntries(mobIconCache),
+        exportTime: Date.now()
+    };
+
+    const blob = new Blob([JSON.stringify(cacheData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mob-search-cache-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log('快取資料已匯出');
+}
+
+// 匯入快取資料 - Import Cache Data
+function importCacheData(jsonData) {
+    try {
+        const cacheData = JSON.parse(jsonData);
+
+        if (cacheData.searchCache) {
+            for (const [key, value] of Object.entries(cacheData.searchCache)) {
+                searchCache.set(key, value);
+            }
+        }
+
+        if (cacheData.mobDetailsCache) {
+            for (const [key, value] of Object.entries(cacheData.mobDetailsCache)) {
+                mobDetailsCache.set(key, value);
+            }
+        }
+
+        if (cacheData.mobDropCache) {
+            for (const [key, value] of Object.entries(cacheData.mobDropCache)) {
+                mobDropCache.set(key, value);
+            }
+        }
+
+        if (cacheData.mobIconCache) {
+            for (const [key, value] of Object.entries(cacheData.mobIconCache)) {
+                mobIconCache.set(key, value);
+            }
+        }
+
+        console.log('快取資料已匯入');
+        return true;
+    } catch (error) {
+        console.error('匯入快取資料失敗:', error);
+        return false;
+    }
+}
+
 // ===== 工具函數 - Utility Functions =====
 
 // 根據ID從搜尋回應獲取怪物名稱 - Get Mob Name by ID from Search Response
@@ -480,11 +848,16 @@ function getSearchResultsCount() {
 
 // 清空所有快取和狀態 - Clear All Cache and State
 function clearAllCache() {
+    searchCache.clear();
+    mobDetailsCache.clear();
+    mobDropCache.clear();
+    mobIconCache.clear();
     lastSearchResponse = null;
     if (searchInput) searchInput.value = '';
     if (searchButton) searchButton.disabled = true;
     selectedItemId = null;
     hideSuggestions();
+    console.log('所有快取已清空');
 }
 
 // 中英翻譯選單切換功能 - Translation Menu Toggle Function

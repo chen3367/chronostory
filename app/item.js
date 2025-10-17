@@ -12,6 +12,13 @@ let lastSearchResponse = null;       // 最後一次搜尋的API回應
 let debounceTimer;                  // 防抖計時器
 const debounceDelay = 300;          // 防抖延遲時間 (ms)
 
+// 快取系統變數 - Cache System Variables
+let searchCache = new Map();        // 搜尋結果快取：搜尋詞 -> 搜尋結果
+let itemDetailsCache = new Map();   // 物品詳情快取：物品ID -> 詳情資料
+let itemIconCache = new Map();      // 物品圖標快取：物品ID -> 圖標URL
+let mobDropCache = new Map();       // 怪物掉落快取：物品ID -> 掉落資料
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 快取過期時間：24小時
+
 // ===== 初始化設定 - Initialization =====
 document.addEventListener('DOMContentLoaded', function() {
     initializeSearch();
@@ -23,6 +30,102 @@ function initializeSearch() {
     if (!searchInput) return;
 
     console.log('初始化物品搜尋功能 - Initializing item search functionality');
+
+    // 初始化快取系統
+    initializeCacheSystem();
+
+    // 定期清理過期快取（每小時執行一次）
+    setInterval(cleanExpiredCache, 60 * 60 * 1000);
+}
+
+// 初始化快取系統 - Initialize Cache System
+function initializeCacheSystem() {
+    console.log('初始化快取系統 - Initializing cache system');
+
+    // 檢查瀏覽器是否支援本地儲存
+    if (typeof Storage !== 'undefined') {
+        // 嘗試從本地儲存載入快取資料
+        loadCacheFromStorage();
+    }
+
+    // 監聽頁面卸載事件，儲存快取到本地儲存
+    window.addEventListener('beforeunload', saveCacheToStorage);
+
+    // 監聽可見性變化，當頁面變為可見時檢查快取
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    console.log('快取系統初始化完成');
+}
+
+// 從本地儲存載入快取 - Load Cache from Storage
+function loadCacheFromStorage() {
+    try {
+        const cachedData = localStorage.getItem('itemSearchCache');
+        if (cachedData) {
+            const cacheData = JSON.parse(cachedData);
+
+            // 檢查快取資料是否過期（超過24小時）
+            if (Date.now() - cacheData.timestamp < CACHE_EXPIRY) {
+                if (cacheData.searchCache) {
+                    for (const [key, value] of Object.entries(cacheData.searchCache)) {
+                        searchCache.set(key, value);
+                    }
+                }
+
+                if (cacheData.itemDetailsCache) {
+                    for (const [key, value] of Object.entries(cacheData.itemDetailsCache)) {
+                        itemDetailsCache.set(key, value);
+                    }
+                }
+
+                if (cacheData.itemIconCache) {
+                    for (const [key, value] of Object.entries(cacheData.itemIconCache)) {
+                        itemIconCache.set(key, value);
+                    }
+                }
+
+                if (cacheData.mobDropCache) {
+                    for (const [key, value] of Object.entries(cacheData.mobDropCache)) {
+                        mobDropCache.set(key, value);
+                    }
+                }
+
+                console.log('已從本地儲存載入快取資料');
+            } else {
+                console.log('本地儲存的快取資料已過期，已清除');
+                localStorage.removeItem('itemSearchCache');
+            }
+        }
+    } catch (error) {
+        console.error('載入快取資料失敗:', error);
+    }
+}
+
+// 儲存快取到本地儲存 - Save Cache to Storage
+function saveCacheToStorage() {
+    try {
+        const cacheData = {
+            searchCache: Object.fromEntries(searchCache),
+            itemDetailsCache: Object.fromEntries(itemDetailsCache),
+            itemIconCache: Object.fromEntries(itemIconCache),
+            mobDropCache: Object.fromEntries(mobDropCache),
+            timestamp: Date.now()
+        };
+
+        localStorage.setItem('itemSearchCache', JSON.stringify(cacheData));
+        console.log('快取資料已儲存到本地儲存');
+    } catch (error) {
+        console.error('儲存快取資料失敗:', error);
+    }
+}
+
+// 處理頁面可見性變化 - Handle Visibility Change
+function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+        // 頁面變為可見時，清理過期快取並檢查本地儲存
+        cleanExpiredCache();
+        loadCacheFromStorage();
+    }
 }
 
 // 初始化事件監聽器 - Initialize Event Listeners
@@ -86,9 +189,19 @@ async function handleSearchButtonClick() {
 
 // ===== 搜尋功能 - Search Functions =====
 
-// 搜尋物品函數（帶重試機制） - Search Item Function with Retry Mechanism
+// 搜尋物品函數（帶重試機制和快取系統） - Search Item Function with Retry Mechanism and Cache System
 async function searchItem(searchTerm) {
     showLoading();
+
+    // 檢查快取中是否有搜尋結果
+    const cachedResult = getCachedSearchResult(searchTerm);
+    if (cachedResult) {
+        console.log(`使用快取搜尋結果: ${searchTerm}`);
+        updateDictionaryAndShowSuggestions(cachedResult.items);
+        return;
+    }
+
+    console.log(`快取中未找到 "${searchTerm}"，進行API搜尋`);
 
     const maxRetries = 2;
     let lastError;
@@ -99,8 +212,12 @@ async function searchItem(searchTerm) {
 
             if (response.ok) {
                 const data = await response.json();
+
+                // 將搜尋結果儲存到快取
+                setCachedSearchResult(searchTerm, data);
+
                 updateDictionaryAndShowSuggestions(data.items || []);
-                console.log(`搜尋成功完成於嘗試 ${attempt + 1}`);
+                console.log(`搜尋成功完成於嘗試 ${attempt + 1}，結果已快取`);
                 return;
             } else {
                 throw new Error(`請求失敗: ${response.status}`);
@@ -604,6 +721,142 @@ function getMobIconUrl(mob) {
     return `https://maplestory.io/api/gms/83/mob/${mob.mob_id}/render/stand`;
 }
 
+// ===== 快取管理函數 - Cache Management Functions =====
+
+// 獲取快取中的搜尋結果 - Get Cached Search Result
+function getCachedSearchResult(searchTerm) {
+    const cached = searchCache.get(searchTerm);
+    if (!cached) return null;
+
+    // 檢查快取是否過期
+    if (Date.now() - cached.timestamp > CACHE_EXPIRY) {
+        searchCache.delete(searchTerm);
+        console.log(`快取過期，已刪除: ${searchTerm}`);
+        return null;
+    }
+
+    return cached.data;
+}
+
+// 設定快取搜尋結果 - Set Cached Search Result
+function setCachedSearchResult(searchTerm, data) {
+    searchCache.set(searchTerm, {
+        data: data,
+        timestamp: Date.now()
+    });
+    console.log(`已快取搜尋結果: ${searchTerm}`);
+}
+
+// 清理過期的快取 - Clean Expired Cache
+function cleanExpiredCache() {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const [key, value] of searchCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+            searchCache.delete(key);
+            cleanedCount++;
+        }
+    }
+
+    for (const [key, value] of itemDetailsCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+            itemDetailsCache.delete(key);
+            cleanedCount++;
+        }
+    }
+
+    for (const [key, value] of itemIconCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+            itemIconCache.delete(key);
+            cleanedCount++;
+        }
+    }
+
+    for (const [key, value] of mobDropCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+            mobDropCache.delete(key);
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`已清理 ${cleanedCount} 個過期快取項目`);
+    }
+}
+
+// 獲取快取統計資訊 - Get Cache Statistics
+function getCacheStats() {
+    return {
+        searchCache: searchCache.size,
+        itemDetailsCache: itemDetailsCache.size,
+        itemIconCache: itemIconCache.size,
+        mobDropCache: mobDropCache.size,
+        totalCacheSize: searchCache.size + itemDetailsCache.size + itemIconCache.size + mobDropCache.size
+    };
+}
+
+// 匯出快取資料（用於備份或遷移） - Export Cache Data
+function exportCacheData() {
+    const cacheData = {
+        searchCache: Object.fromEntries(searchCache),
+        itemDetailsCache: Object.fromEntries(itemDetailsCache),
+        itemIconCache: Object.fromEntries(itemIconCache),
+        mobDropCache: Object.fromEntries(mobDropCache),
+        exportTime: Date.now()
+    };
+
+    const blob = new Blob([JSON.stringify(cacheData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `item-search-cache-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log('快取資料已匯出');
+}
+
+// 匯入快取資料 - Import Cache Data
+function importCacheData(jsonData) {
+    try {
+        const cacheData = JSON.parse(jsonData);
+
+        if (cacheData.searchCache) {
+            for (const [key, value] of Object.entries(cacheData.searchCache)) {
+                searchCache.set(key, value);
+            }
+        }
+
+        if (cacheData.itemDetailsCache) {
+            for (const [key, value] of Object.entries(cacheData.itemDetailsCache)) {
+                itemDetailsCache.set(key, value);
+            }
+        }
+
+        if (cacheData.itemIconCache) {
+            for (const [key, value] of Object.entries(cacheData.itemIconCache)) {
+                itemIconCache.set(key, value);
+            }
+        }
+
+        if (cacheData.mobDropCache) {
+            for (const [key, value] of Object.entries(cacheData.mobDropCache)) {
+                mobDropCache.set(key, value);
+            }
+        }
+
+        console.log('快取資料已匯入');
+        return true;
+    } catch (error) {
+        console.error('匯入快取資料失敗:', error);
+        return false;
+    }
+}
+
 // ===== 工具函數 - Utility Functions =====
 
 // 根據ID從搜尋回應獲取物品名稱 - Get Item Name by ID from Search Response
@@ -624,8 +877,6 @@ function getItemIdByName(name) {
     return null;
 }
 
-
-
 // 獲取最後搜尋回應 - Get Last Search Response
 function getLastSearchResponse() {
     return lastSearchResponse;
@@ -643,11 +894,16 @@ function getSearchResultsCount() {
 
 // 清空所有快取和狀態 - Clear All Cache and State
 function clearAllCache() {
+    searchCache.clear();
+    itemDetailsCache.clear();
+    itemIconCache.clear();
+    mobDropCache.clear();
     lastSearchResponse = null;
     if (searchInput) searchInput.value = '';
     if (searchButton) searchButton.disabled = true;
     selectedItemId = null;
     hideSuggestions();
+    console.log('所有快取已清空');
 }
 
 // 中英翻譯選單切換功能 - Translation Menu Toggle Function
@@ -694,7 +950,7 @@ function translateCategory(category) {
         'One Handed Axe': '單手斧', 'One Handed BW': '單手棍',
         'Two Handed SwordS': '雙手劍', 'Two Handed Axe': '雙手斧',
         'Two Handed BW': '雙手棍', 'Dagger': '短劍', 'Earring': '耳環',
-        'Staff': '長杖', 'Wand': '短杖'
+        'Staff': '長杖', 'Wand': '短杖', 'Knuckle': '指虎'
     };
     return map[category] || category;
 }
