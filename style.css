@@ -529,6 +529,7 @@ main .content {
   gap: 8px;
   margin: 0;
   padding: 0;
+  padding-bottom: 20px;
   font-size: 0.9rem;
   color: #333;
   line-height: 1.5;
