@@ -1,9 +1,5 @@
 // ===== 怪物查詢功能 - Mob Query System =====
 
-// 怪物資料字典 - Mob Data Dictionaries
-const mobDictionary = {};           // 儲存 {id: name} 的怪物名稱字典
-const mobSpriteDictionary = {};     // 儲存 {id: sprite_override_url} 的怪物圖標字典
-
 // DOM 元素引用 - DOM Element References
 const searchInput = document.getElementById('searchInput');
 const suggestionsDiv = document.getElementById('suggestions');
@@ -12,6 +8,7 @@ const resultDisplay = document.getElementById('resultDisplay');
 
 // 搜尋相關變數 - Search Related Variables
 let selectedItemId = null;          // 當前選擇的怪物ID
+let lastSearchResponse = null;       // 最後一次搜尋的API回應
 let debounceTimer;                  // 防抖計時器
 const debounceDelay = 300;          // 防抖延遲時間 (ms)
 
@@ -55,12 +52,11 @@ function handleSearchInput(e) {
     }
 
     debounceTimer = setTimeout(() => {
-        if (window.location.pathname.includes('mob.html')) {
-            searchMob(searchTerm);
-        }
+        searchMob(searchTerm);
     }, debounceDelay);
 }
 
+// 處理文檔點擊 - Handle Document Click
 function handleDocumentClick(e) {
     if (searchInput && !e.target.closest('.search-wrapper')) {
         hideSuggestions();
@@ -85,9 +81,7 @@ async function handleSearchButtonClick() {
         return;
     }
 
-    if (window.location.pathname.includes('mob.html')) {
-        await fetchMobDetails(selectedItemId);
-    }
+    await fetchMobDetails(selectedItemId);
 }
 
 // ===== 搜尋功能 - Search Functions =====
@@ -144,45 +138,27 @@ async function performMobSearch(searchTerm) {
     });
 }
 
-// 更新怪物字典並顯示建議 - Update Mob Dictionary and Show Suggestions
+// 更新搜尋結果並顯示建議 - Update Search Results and Show Suggestions
 function updateMobDictionaryAndShowSuggestions(mobs) {
     if (!suggestionsDiv) return;
 
     suggestionsDiv.innerHTML = '';
-    clearMobDictionaries();
 
     if (!mobs || mobs.length === 0) {
         showMobNoResults();
         return;
     }
 
-    mobs.forEach(mob => processMobData(mob));
+    // 儲存搜尋回應
+    lastSearchResponse = { mobs };
+
+    mobs.forEach(mob => {
+        const suggestionItem = createSuggestionItem(mob);
+        suggestionsDiv.appendChild(suggestionItem);
+    });
+
     showSuggestions();
-
-    console.log('當前怪物字典:', mobDictionary);
-    console.log('當前怪物 sprite 字典:', mobSpriteDictionary);
-}
-
-// 處理怪物資料 - Process Mob Data
-function processMobData(mob) {
-    if (!mob.mob_id || !mob.mob_name) return;
-
-    // 儲存怪物名稱
-    mobDictionary[mob.mob_id] = mob.mob_name;
-
-    // 儲存 sprite_override_url（如果存在）
-    if (mob.sprite_override && mob.sprite_override.url) {
-        const spriteUrl = mob.sprite_override.url.startsWith('http')
-            ? mob.sprite_override.url
-            : 'https://chronostory.onrender.com' + mob.sprite_override.url;
-
-        mobSpriteDictionary[mob.mob_id] = spriteUrl;
-        console.log(`儲存 sprite_override.url 對於怪物 ${mob.mob_id}:`, spriteUrl);
-    }
-
-    // 創建建議項目
-    const suggestionItem = createSuggestionItem(mob);
-    suggestionsDiv.appendChild(suggestionItem);
+    console.log('搜尋結果已更新:', mobs);
 }
 
 // 創建建議項目 - Create Suggestion Item
@@ -195,12 +171,6 @@ function createSuggestionItem(mob) {
     suggestionItem.addEventListener('click', handleSuggestionItemClick);
 
     return suggestionItem;
-}
-
-// 清空怪物字典 - Clear Mob Dictionaries
-function clearMobDictionaries() {
-    Object.keys(mobDictionary).forEach(key => delete mobDictionary[key]);
-    Object.keys(mobSpriteDictionary).forEach(key => delete mobSpriteDictionary[key]);
 }
 
 // ===== UI 顯示函數 - UI Display Functions =====
@@ -279,10 +249,16 @@ async function fetchMobInfo(mobId) {
 
 // 獲取怪物圖標URL - Get Mob Icon URL
 async function getMobIconUrl(mobId) {
-    // 優先使用儲存的 sprite_override.url
-    if (mobSpriteDictionary[mobId]) {
-        console.log('使用儲存的怪物 sprite_override.url:', mobSpriteDictionary[mobId]);
-        return mobSpriteDictionary[mobId];
+    // 檢查最後搜尋回應中是否有 sprite_override.url
+    if (lastSearchResponse && lastSearchResponse.mobs) {
+        const mobData = lastSearchResponse.mobs.find(mob => mob.mob_id === mobId);
+        if (mobData && mobData.sprite_override && mobData.sprite_override.url) {
+            const spriteUrl = mobData.sprite_override.url.startsWith('http')
+                ? mobData.sprite_override.url
+                : 'https://chronostory.onrender.com' + mobData.sprite_override.url;
+            console.log('使用搜尋回應中的怪物 sprite_override.url:', spriteUrl);
+            return spriteUrl;
+        }
     }
 
     // 嘗試從 API 獲取圖標
@@ -469,24 +445,46 @@ function getItemIconUrl(item) {
 
 // ===== 工具函數 - Utility Functions =====
 
-// 獲取怪物字典 - Get Mob Dictionary
-function getMobDictionary() {
-    return mobDictionary;
-}
-
-// 根據ID獲取怪物名稱 - Get Mob Name by ID
+// 根據ID從搜尋回應獲取怪物名稱 - Get Mob Name by ID from Search Response
 function getMobNameById(id) {
-    return mobDictionary[id] || null;
-}
-
-// 根據名稱獲取怪物ID - Get Mob ID by Name
-function getMobIdByName(name) {
-    for (const [id, mobName] of Object.entries(mobDictionary)) {
-        if (mobName === name) {
-            return id;
-        }
+    if (lastSearchResponse && lastSearchResponse.mobs) {
+        const mob = lastSearchResponse.mobs.find(mob => mob.mob_id === id);
+        return mob ? mob.mob_name : null;
     }
     return null;
+}
+
+// 根據名稱從搜尋回應獲取怪物ID - Get Mob ID by Name from Search Response
+function getMobIdByName(name) {
+    if (lastSearchResponse && lastSearchResponse.mobs) {
+        const mob = lastSearchResponse.mobs.find(mob => mob.mob_name === name);
+        return mob ? mob.mob_id : null;
+    }
+    return null;
+}
+
+// 獲取最後搜尋回應 - Get Last Search Response
+function getLastSearchResponse() {
+    return lastSearchResponse;
+}
+
+// 檢查是否有搜尋結果 - Has Search Results
+function hasSearchResults() {
+    return lastSearchResponse && lastSearchResponse.mobs && lastSearchResponse.mobs.length > 0;
+}
+
+// 獲取搜尋結果數量 - Get Search Results Count
+function getSearchResultsCount() {
+    return lastSearchResponse && lastSearchResponse.mobs ? lastSearchResponse.mobs.length : 0;
+}
+
+// 清空所有快取和狀態 - Clear All Cache and State
+function clearAllCache() {
+    lastSearchResponse = null;
+    if (searchInput) searchInput.value = '';
+    if (searchButton) searchButton.disabled = true;
+    selectedItemId = null;
+    hideSuggestions();
 }
 
 // 中英翻譯選單切換功能 - Translation Menu Toggle Function

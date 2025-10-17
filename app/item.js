@@ -1,9 +1,5 @@
 // ===== 物品查詢功能 - Item Query System =====
 
-// 物品資料字典 - Item Data Dictionaries
-const equipmentDictionary = {};     // 儲存 {id: name} 的物品名稱字典
-const spriteDictionary = {};        // 儲存 {id: sprite_override_url} 的物品圖標字典
-
 // DOM 元素引用 - DOM Element References
 const searchInput = document.getElementById('searchInput');
 const suggestionsDiv = document.getElementById('suggestions');
@@ -12,6 +8,7 @@ const resultDisplay = document.getElementById('resultDisplay');
 
 // 搜尋相關變數 - Search Related Variables
 let selectedItemId = null;          // 當前選擇的物品ID
+let lastSearchResponse = null;       // 最後一次搜尋的API回應
 let debounceTimer;                  // 防抖計時器
 const debounceDelay = 300;          // 防抖延遲時間 (ms)
 
@@ -55,9 +52,7 @@ function handleSearchInput(e) {
     }
 
     debounceTimer = setTimeout(() => {
-        if (window.location.pathname.includes('item.html')) {
-            searchItem(searchTerm);
-        }
+        searchItem(searchTerm);
     }, debounceDelay);
 }
 
@@ -86,9 +81,7 @@ async function handleSearchButtonClick() {
         return;
     }
 
-    if (window.location.pathname.includes('item.html')) {
-        await fetchItemDetails(selectedItemId);
-    }
+    await fetchItemDetails(selectedItemId);
 }
 
 // ===== 搜尋功能 - Search Functions =====
@@ -145,41 +138,29 @@ async function performItemSearch(searchTerm) {
     });
 }
 
-// 更新字典並顯示建議 - Update Dictionary and Show Suggestions
+// 更新搜尋結果並顯示建議 - Update Search Results and Show Suggestions
 function updateDictionaryAndShowSuggestions(items) {
     if (!suggestionsDiv) return;
 
     suggestionsDiv.innerHTML = '';
-    clearItemDictionaries();
 
     if (!items || items.length === 0) {
         showNoResults();
         return;
     }
 
+    // 儲存搜尋回應
+    lastSearchResponse = { items };
+
     items.forEach(item => processItemData(item));
     showSuggestions();
 
-    console.log('當前物品字典:', equipmentDictionary);
-    console.log('當前物品 sprite 字典:', spriteDictionary);
+    console.log('搜尋結果已更新:', items);
 }
 
 // 處理物品資料 - Process Item Data
 function processItemData(item) {
     if (!item.item_id || !item.item_name) return;
-
-    // 儲存物品名稱
-    equipmentDictionary[item.item_id] = item.item_name;
-
-    // 儲存 sprite_override_url（如果存在）
-    if (item.sprite_override && item.sprite_override.url) {
-        const spriteUrl = item.sprite_override.url.startsWith('http')
-            ? item.sprite_override.url
-            : 'https://chronostory.onrender.com' + item.sprite_override.url;
-
-        spriteDictionary[item.item_id] = spriteUrl;
-        console.log(`儲存 sprite_override.url 對於物品 ${item.item_id}:`, spriteUrl);
-    }
 
     // 創建建議項目
     const suggestionItem = createSuggestionItem(item);
@@ -196,12 +177,6 @@ function createSuggestionItem(item) {
     suggestionItem.addEventListener('click', handleSuggestionItemClick);
 
     return suggestionItem;
-}
-
-// 清空物品字典 - Clear Item Dictionaries
-function clearItemDictionaries() {
-    Object.keys(equipmentDictionary).forEach(key => delete equipmentDictionary[key]);
-    Object.keys(spriteDictionary).forEach(key => delete spriteDictionary[key]);
 }
 
 // ===== UI 顯示函數 - UI Display Functions =====
@@ -280,10 +255,16 @@ async function fetchItemInfo(itemId) {
 
 // 獲取物品圖標URL - Get Item Icon URL
 async function getItemIconUrl(itemId) {
-    // 優先使用儲存的 sprite_override.url
-    if (spriteDictionary[itemId]) {
-        console.log('使用儲存的物品 sprite_override.url:', spriteDictionary[itemId]);
-        return spriteDictionary[itemId];
+    // 優先使用搜尋回應中的 sprite_override.url
+    if (lastSearchResponse && lastSearchResponse.items) {
+        const item = lastSearchResponse.items.find(item => item.item_id === itemId);
+        if (item && item.sprite_override && item.sprite_override.url) {
+            const spriteUrl = item.sprite_override.url.startsWith('http')
+                ? item.sprite_override.url
+                : 'https://chronostory.onrender.com' + item.sprite_override.url;
+            console.log('使用搜尋回應中的物品 sprite_override.url:', spriteUrl);
+            return spriteUrl;
+        }
     }
 
     // 嘗試從 API 獲取圖標
@@ -625,24 +606,48 @@ function getMobIconUrl(mob) {
 
 // ===== 工具函數 - Utility Functions =====
 
-// 獲取物品字典 - Get Equipment Dictionary
-function getEquipmentDictionary() {
-    return equipmentDictionary;
-}
-
-// 根據ID獲取物品名稱 - Get Equipment Name by ID
-function getEquipmentNameById(id) {
-    return equipmentDictionary[id] || null;
-}
-
-// 根據名稱獲取物品ID - Get Equipment ID by Name
-function getEquipmentIdByName(name) {
-    for (const [id, itemName] of Object.entries(equipmentDictionary)) {
-        if (itemName === name) {
-            return id;
-        }
+// 根據ID從搜尋回應獲取物品名稱 - Get Item Name by ID from Search Response
+function getItemNameById(id) {
+    if (lastSearchResponse && lastSearchResponse.items) {
+        const item = lastSearchResponse.items.find(item => item.item_id === id);
+        return item ? item.item_name : null;
     }
     return null;
+}
+
+// 根據名稱從搜尋回應獲取物品ID - Get Item ID by Name from Search Response
+function getItemIdByName(name) {
+    if (lastSearchResponse && lastSearchResponse.items) {
+        const item = lastSearchResponse.items.find(item => item.item_name === name);
+        return item ? item.item_id : null;
+    }
+    return null;
+}
+
+
+
+// 獲取最後搜尋回應 - Get Last Search Response
+function getLastSearchResponse() {
+    return lastSearchResponse;
+}
+
+// 檢查是否有搜尋結果 - Has Search Results
+function hasSearchResults() {
+    return lastSearchResponse && lastSearchResponse.items && lastSearchResponse.items.length > 0;
+}
+
+// 獲取搜尋結果數量 - Get Search Results Count
+function getSearchResultsCount() {
+    return lastSearchResponse && lastSearchResponse.items ? lastSearchResponse.items.length : 0;
+}
+
+// 清空所有快取和狀態 - Clear All Cache and State
+function clearAllCache() {
+    lastSearchResponse = null;
+    if (searchInput) searchInput.value = '';
+    if (searchButton) searchButton.disabled = true;
+    selectedItemId = null;
+    hideSuggestions();
 }
 
 // 中英翻譯選單切換功能 - Translation Menu Toggle Function
