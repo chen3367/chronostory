@@ -2,6 +2,7 @@
 
 // 翻譯資料字典 - Translation Data Dictionaries
 const translateMobDictionary = {};   // 儲存 {id: name} 的怪物翻譯字典
+const mobIdsDictionary = {};        // 儲存 {name: [id1, id2, ...]} 的怪物ID字典
 
 // DOM 元素引用 - DOM Element References
 const translateInput = document.getElementById('translateInput');
@@ -10,7 +11,7 @@ const translateButton = document.getElementById('translateButton');
 const translateResultDisplay = document.getElementById('translateResultDisplay');
 
 // 翻譯相關變數 - Translation Variables
-let selectedTranslateItemId = null;  // 當前選擇的怪物ID
+let selectedTranslateMobName = null; // 當前選擇的怪物名稱
 let currentTranslateMode = 'chToEn'; // 當前翻譯模式 (預設中翻英)
 let translateDebounceTimer;          // 防抖計時器
 const translateDebounceDelay = 300;  // 防抖延遲時間 (ms)
@@ -91,7 +92,7 @@ function handleTranslateButtonClick() {
 
 // 處理建議項目點擊 - Handle Suggestion Item Click
 function handleTranslateSuggestionClick(e) {
-    selectedTranslateItemId = e.target.dataset.id;
+    selectedTranslateMobName = e.target.textContent; // 儲存選中的怪物名稱
     if (translateInput) {
         translateInput.value = e.target.textContent.replace(/ \(\d+\)$/, ''); // 移除ID顯示
         hideTranslateSuggestions();
@@ -165,7 +166,7 @@ function getTranslateMobApiUrl(searchTerm) {
     if (currentTranslateMode === 'chToEn') {
         return `https://maplestory.io/api/TWMS/256/mob?&searchFor=${encodedTerm}`;
     } else if (currentTranslateMode === 'enToCh') {
-        return `https://maplestory.io/api/GMS/83/mob?&searchFor=${encodedTerm}`;
+        return `https://maplestory.io/api/GMS/62/mob?&searchFor=${encodedTerm}`;
     }
 
     throw new Error('不支援的翻譯模式');
@@ -184,9 +185,18 @@ function updateTranslateMobDictionaryAndShowSuggestions(mobs) {
     }
 
     mobs.forEach(mob => processTranslateMobData(mob));
+
+    // 根據 mobIdsDictionary 的 keys 建立建議項目
+    Object.keys(mobIdsDictionary).forEach(name => {
+        const suggestionItem = createTranslateMobSuggestionItemFromName(name);
+        translateSuggestions.appendChild(suggestionItem);
+    });
+
     showTranslateSuggestions();
 
     console.log('當前翻譯怪物字典:', translateMobDictionary);
+    console.log('當前 mobIdsDictionary:', mobIdsDictionary);
+    console.log('搜尋結果數量:', mobs.length);
 }
 
 // 處理翻譯怪物資料 - Process Translation Mob Data
@@ -194,15 +204,33 @@ function processTranslateMobData(mob) {
     if (!mob.id || !mob.name) return;
 
     translateMobDictionary[mob.id] = mob.name;
-    const suggestionItem = createTranslateMobSuggestionItem(mob);
-    translateSuggestions.appendChild(suggestionItem);
+
+    // 處理 mobIdsDictionary
+    if (!mobIdsDictionary[mob.name]) {
+        mobIdsDictionary[mob.name] = [mob.id];
+    } else {
+        if (!mobIdsDictionary[mob.name].includes(mob.id)) {
+            mobIdsDictionary[mob.name].push(mob.id);
+        }
+    }
+}
+
+// 從名稱建立翻譯怪物建議項目 - Create Translation Mob Suggestion Item from Name
+function createTranslateMobSuggestionItemFromName(name) {
+    const suggestionItem = document.createElement('div');
+    suggestionItem.className = 'suggestion-item';
+    suggestionItem.textContent = name; // 顯示 mobIdsDictionary 的 key
+    suggestionItem.dataset.id = mobIdsDictionary[name][0]; // 使用第一個ID作為預設
+
+    suggestionItem.addEventListener('click', handleTranslateSuggestionClick);
+    return suggestionItem;
 }
 
 // 創建翻譯怪物建議項目 - Create Translation Mob Suggestion Item
 function createTranslateMobSuggestionItem(mob) {
     const suggestionItem = document.createElement('div');
     suggestionItem.className = 'suggestion-item';
-    suggestionItem.textContent = `${mob.name} (${mob.id})`;
+    suggestionItem.textContent = mob.name; // 只顯示名稱，不顯示ID
     suggestionItem.dataset.id = mob.id;
 
     suggestionItem.addEventListener('click', handleTranslateSuggestionClick);
@@ -212,6 +240,7 @@ function createTranslateMobSuggestionItem(mob) {
 // 清空翻譯怪物字典 - Clear Translation Mob Dictionary
 function clearTranslateMobDictionary() {
     Object.keys(translateMobDictionary).forEach(key => delete translateMobDictionary[key]);
+    Object.keys(mobIdsDictionary).forEach(key => delete mobIdsDictionary[key]);
 }
 
 // ===== 翻譯功能 - Translation Functions =====
@@ -222,16 +251,72 @@ async function performMobTranslation(text, mode) {
 
     translateResultDisplay.classList.remove('empty');
 
-    // 嘗試獲取怪物ID
-    let mobId = selectedTranslateItemId || getTranslateMobIdByName(text);
+    // 嘗試獲取怪物ID列表
+    let mobIds = null;
 
-    if (mobId) {
-        await performMobApiTranslation(text, mobId, mode);
+    if (selectedTranslateMobName) {
+        // 如果有選中的怪物名稱，從 mobIdsDictionary 中獲取所有對應的ID
+        mobIds = mobIdsDictionary[selectedTranslateMobName] || null;
+    } else {
+        // 否則根據輸入文字搜尋
+        mobIds = getMobIdsByName(text);
+    }
+
+    if (mobIds && mobIds.length > 0) {
+        await performMobApiTranslationWithFallback(text, mobIds, mode);
     } else {
         showMobTranslationNotFound(text);
     }
 
-    selectedTranslateItemId = null; // 清空選擇的ID
+    selectedTranslateMobName = null; // 清空選擇的名稱
+}
+
+// 執行怪物API翻譯支援多ID嘗試 - Perform Mob API Translation with Multi-ID Fallback
+async function performMobApiTranslationWithFallback(text, mobIds, mode) {
+    const attemptedIds = [];
+
+    for (let i = 0; i < mobIds.length; i++) {
+        const mobId = mobIds[i];
+        attemptedIds.push(mobId);
+
+        try {
+            showMobTranslationInProgress(text);
+
+            const apiUrl = getMobTranslationApiUrl(mobId, mode);
+            console.log(`嘗試獲取怪物翻譯 (${i + 1}/${mobIds.length}): ID=${mobId}`);
+
+            const response = await fetch(apiUrl);
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`怪物翻譯成功 (${i + 1}/${mobIds.length}):`, data.name);
+
+                const result = `
+                    <div class="translate-result">
+                        <div class="translate-original">原文: ${text}</div>
+                        <div class="translate-translated">翻譯結果: ${data.name}</div>
+                    </div>
+                `;
+                translateResultDisplay.innerHTML = result;
+                return; // 成功則直接返回
+            } else {
+                console.log(`怪物翻譯失敗 (${i + 1}/${mobIds.length}): ID=${mobId} 不存在 (狀態碼: ${response.status})`);
+            }
+
+        } catch (error) {
+            console.error(`怪物翻譯錯誤 (${i + 1}/${mobIds.length}), ID=${mobId}:`, error);
+        }
+    }
+
+    // 所有ID都嘗試過了但都失敗了，顯示結果
+    const result = `
+        <div class="translate-result">
+            <div class="translate-original">原文: ${text}</div>
+            <div class="translate-translated">翻譯結果: 所有ID都不存在</div>
+            <div class="translate-id">嘗試過的ID: ${attemptedIds.join(', ')}</div>
+        </div>
+    `;
+    translateResultDisplay.innerHTML = result;
 }
 
 // 執行怪物API翻譯 - Perform Mob API Translation
@@ -358,6 +443,11 @@ function hideTranslateSuggestions() {
 
 // ===== 工具函數 - Utility Functions =====
 
+// 根據名稱獲取怪物ID列表 - Get Mob IDs by Name
+function getMobIdsByName(name) {
+    return mobIdsDictionary[name] || null;
+}
+
 // 根據名稱獲取翻譯怪物ID - Get Translation Mob ID by Name
 function getTranslateMobIdByName(name) {
     for (const [id, mobName] of Object.entries(translateMobDictionary)) {
@@ -377,6 +467,6 @@ function clearTranslateInput() {
         translateResultDisplay.classList.add('empty');
         translateResultDisplay.innerHTML = '';
     }
-    selectedTranslateItemId = null;
+    selectedTranslateMobName = null;
     hideTranslateSuggestions();
 }

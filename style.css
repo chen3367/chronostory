@@ -252,20 +252,6 @@ main .content {
   text-decoration: underline;
 }
 
-.translation-tips {
-  background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 6px;
-  padding: 15px;
-  margin-top: 15px;
-}
-
-.translation-tips p {
-  color: #856404 !important;
-  margin-bottom: 5px !important;
-  font-size: 0.9rem;
-}
-
 .tips {
   background-color: #d4edda;
   border: 1px solid #c3e6cb;

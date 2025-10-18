@@ -2,6 +2,7 @@
 
 // 翻譯資料字典 - Translation Data Dictionaries
 const translateItemDictionary = {};  // 儲存 {id: name} 的物品翻譯字典
+const itemIdsDictionary = {};        // 儲存 {name: [id1, id2, ...]} 的物品ID字典
 
 // DOM 元素引用 - DOM Element References
 const translateInput = document.getElementById('translateInput');
@@ -10,7 +11,8 @@ const translateButton = document.getElementById('translateButton');
 const translateResultDisplay = document.getElementById('translateResultDisplay');
 
 // 翻譯相關變數 - Translation Variables
-let selectedTranslateItemId = null;  // 當前選擇的物品ID
+let selectedTranslateItemId = null;   // 當前選擇的物品ID
+let selectedTranslateItemName = null; // 當前選擇的物品名稱
 let currentTranslateMode = 'chToEn'; // 當前翻譯模式 (預設中翻英)
 let translateDebounceTimer;          // 防抖計時器
 const translateDebounceDelay = 300;  // 防抖延遲時間 (ms)
@@ -92,6 +94,7 @@ function handleTranslateButtonClick() {
 // 處理建議項目點擊 - Handle Suggestion Item Click
 function handleTranslateSuggestionClick(e) {
     selectedTranslateItemId = e.target.dataset.id;
+    selectedTranslateItemName = e.target.textContent; // 儲存選中的物品名稱
     if (translateInput) {
         translateInput.value = e.target.textContent.replace(/ \(\d+\)$/, ''); // 移除ID顯示
         hideTranslateSuggestions();
@@ -165,7 +168,7 @@ function getTranslateApiUrl(searchTerm) {
     if (currentTranslateMode === 'chToEn') {
         return `https://maplestory.io/api/TWMS/256/item?&searchFor=${encodedTerm}`;
     } else if (currentTranslateMode === 'enToCh') {
-        return `https://maplestory.io/api/GMS/83/item?&searchFor=${encodedTerm}`;
+        return `https://maplestory.io/api/GMS/62/item?&searchFor=${encodedTerm}`;
     }
 
     throw new Error('不支援的翻譯模式');
@@ -184,9 +187,17 @@ function updateTranslateDictionaryAndShowSuggestions(items) {
     }
 
     items.forEach(item => processTranslateItemData(item));
+
+    // 根據 itemIdsDictionary 的 keys 建立建議項目
+    Object.keys(itemIdsDictionary).forEach(name => {
+        const suggestionItem = createTranslateSuggestionItemFromName(name);
+        translateSuggestions.appendChild(suggestionItem);
+    });
+
     showTranslateSuggestions();
 
     console.log('當前翻譯物品字典:', translateItemDictionary);
+    console.log('當前 itemIdsDictionary:', itemIdsDictionary);
 }
 
 // 處理翻譯物品資料 - Process Translation Item Data
@@ -194,15 +205,33 @@ function processTranslateItemData(item) {
     if (!item.id || !item.name) return;
 
     translateItemDictionary[item.id] = item.name;
-    const suggestionItem = createTranslateSuggestionItem(item);
-    translateSuggestions.appendChild(suggestionItem);
+
+    // 處理 itemIdsDictionary
+    if (!itemIdsDictionary[item.name]) {
+        itemIdsDictionary[item.name] = [item.id];
+    } else {
+        if (!itemIdsDictionary[item.name].includes(item.id)) {
+            itemIdsDictionary[item.name].push(item.id);
+        }
+    }
+}
+
+// 從名稱建立翻譯建議項目 - Create Translation Suggestion Item from Name
+function createTranslateSuggestionItemFromName(name) {
+    const suggestionItem = document.createElement('div');
+    suggestionItem.className = 'suggestion-item';
+    suggestionItem.textContent = name; // 顯示 itemIdsDictionary 的 key
+    suggestionItem.dataset.id = itemIdsDictionary[name][0]; // 使用第一個ID作為預設
+
+    suggestionItem.addEventListener('click', handleTranslateSuggestionClick);
+    return suggestionItem;
 }
 
 // 創建翻譯建議項目 - Create Translation Suggestion Item
 function createTranslateSuggestionItem(item) {
     const suggestionItem = document.createElement('div');
     suggestionItem.className = 'suggestion-item';
-    suggestionItem.textContent = `${item.name} (${item.id})`;
+    suggestionItem.textContent = item.name; // 只顯示名稱，不顯示ID
     suggestionItem.dataset.id = item.id;
 
     suggestionItem.addEventListener('click', handleTranslateSuggestionClick);
@@ -212,6 +241,7 @@ function createTranslateSuggestionItem(item) {
 // 清空翻譯字典 - Clear Translation Dictionary
 function clearTranslateDictionary() {
     Object.keys(translateItemDictionary).forEach(key => delete translateItemDictionary[key]);
+    Object.keys(itemIdsDictionary).forEach(key => delete itemIdsDictionary[key]);
 }
 
 // ===== 翻譯功能 - Translation Functions =====
@@ -222,16 +252,79 @@ async function performTranslation(text, mode) {
 
     translateResultDisplay.classList.remove('empty');
 
-    // 嘗試獲取物品ID
-    let itemId = selectedTranslateItemId || getTranslateItemIdByName(text);
+    // 嘗試獲取物品ID列表
+    let itemIds = null;
 
-    if (itemId) {
-        await performApiTranslation(text, itemId, mode);
+    if (selectedTranslateItemName) {
+        // 如果有選中的物品名稱，從 itemIdsDictionary 中獲取所有對應的ID
+        itemIds = itemIdsDictionary[selectedTranslateItemName] || null;
+    } else if (selectedTranslateItemId) {
+        // 如果只有選中的ID，使用單一ID
+        itemIds = [selectedTranslateItemId];
+    } else {
+        // 否則根據輸入文字搜尋
+        itemIds = getItemIdsByName(text);
+    }
+
+    if (itemIds && itemIds.length > 0) {
+        await performApiTranslationWithFallback(text, itemIds, mode);
     } else {
         showTranslationNotFound(text);
     }
 
     selectedTranslateItemId = null; // 清空選擇的ID
+    selectedTranslateItemName = null; // 清空選擇的名稱
+}
+
+// 執行API翻譯支援多ID嘗試 - Perform API Translation with Multi-ID Fallback
+async function performApiTranslationWithFallback(text, itemIds, mode) {
+    for (let i = 0; i < itemIds.length; i++) {
+        const itemId = itemIds[i];
+        try {
+            showTranslationInProgress(text);
+
+            const apiUrl = getTranslationApiUrl(itemId, mode);
+            console.log(`嘗試獲取物品翻譯 (${i + 1}/${itemIds.length}): ID=${itemId}`);
+
+            const response = await fetch(apiUrl);
+
+            if (response.ok) {
+                const data = await response.json();
+                const resultName = data.description ? data.description.name : data.name;
+                console.log(`物品翻譯成功 (${i + 1}/${itemIds.length}):`, resultName);
+
+                const result = `
+                    <div class="translate-result">
+                        <div class="translate-original">原文: ${text}</div>
+                        <div class="translate-translated">翻譯結果: ${resultName}</div>
+                    </div>
+                `;
+                translateResultDisplay.innerHTML = result;
+                return; // 成功則直接返回
+            } else {
+                console.log(`物品翻譯失敗 (${i + 1}/${itemIds.length}): ID=${itemId} 不存在 (狀態碼: ${response.status})`);
+                if (i === itemIds.length - 1) {
+                    // 最後一個ID也失敗了，顯示所有嘗試過的ID
+                    const result = `
+                        <div class="translate-result">
+                            <div class="translate-original">原文: ${text}</div>
+                            <div class="translate-translated">翻譯結果: 所有ID都不存在</div>
+                            <div class="translate-id">嘗試過的ID: ${itemIds.join(', ')}</div>
+                        </div>
+                    `;
+                    translateResultDisplay.innerHTML = result;
+                }
+            }
+
+        } catch (error) {
+            console.error(`物品翻譯錯誤 (${i + 1}/${itemIds.length}), ID=${itemId}:`, error);
+            if (i === itemIds.length - 1) {
+                // 最後一個ID也失敗了
+                showTranslationError(text);
+            }
+            // 繼續嘗試下一個ID
+        }
+    }
 }
 
 // 執行API翻譯 - Perform API Translation
@@ -359,6 +452,11 @@ function hideTranslateSuggestions() {
 
 // ===== 工具函數 - Utility Functions =====
 
+// 根據名稱獲取物品ID列表 - Get Item IDs by Name
+function getItemIdsByName(name) {
+    return itemIdsDictionary[name] || null;
+}
+
 // 根據名稱獲取翻譯物品ID - Get Translation Item ID by Name
 function getTranslateItemIdByName(name) {
     for (const [id, itemName] of Object.entries(translateItemDictionary)) {
@@ -379,5 +477,6 @@ function clearTranslateInput() {
         translateResultDisplay.innerHTML = '';
     }
     selectedTranslateItemId = null;
+    selectedTranslateItemName = null;
     hideTranslateSuggestions();
 }
