@@ -397,7 +397,7 @@ async function getMobIconUrl(mobId) {
 
     // 嘗試從 API 獲取圖標
     try {
-        const iconUrlApi = `https://maplestory.io/api/GMS/62/mob/${mobId}/render/stand`;
+        const iconUrlApi = `https://maplestory.io/api/GMS/83/mob/${mobId}/render/stand`;
         const response = await fetch(iconUrlApi);
 
         if (response.ok) {
@@ -589,7 +589,7 @@ function getItemIconUrl(item) {
     }
 
     // 使用預設圖標
-    return `https://maplestory.io/api/GMS/62/item/${item.item_id}/icon`;
+    return `https://maplestory.io/api/GMS/83/item/${item.item_id}/icon`;
 }
 
 // ===== 快取顯示函數 - Cache Display Functions =====

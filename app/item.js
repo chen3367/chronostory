@@ -386,7 +386,7 @@ async function getItemIconUrl(itemId) {
 
     // 嘗試從 API 獲取圖標
     try {
-        const iconUrlApi = `https://maplestory.io/api/GMS/62/item/${itemId}/icon`;
+        const iconUrlApi = `https://maplestory.io/api/GMS/83/item/${itemId}/icon`;
         const response = await fetch(iconUrlApi);
 
         if (response.ok) {

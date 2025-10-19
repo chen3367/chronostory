@@ -166,7 +166,7 @@ function getTranslateMobApiUrl(searchTerm) {
     if (currentTranslateMode === 'chToEn') {
         return `https://maplestory.io/api/TWMS/256/mob?&searchFor=${encodedTerm}`;
     } else if (currentTranslateMode === 'enToCh') {
-        return `https://maplestory.io/api/GMS/62/mob?&searchFor=${encodedTerm}`;
+        return `https://maplestory.io/api/GMS/83/mob?&searchFor=${encodedTerm}`;
     }
 
     throw new Error('不支援的翻譯模式');
@@ -341,7 +341,7 @@ async function performMobApiTranslation(text, mobId, mode) {
 // 獲取怪物翻譯API URL - Get Mob Translation API URL
 function getMobTranslationApiUrl(mobId, mode) {
     if (mode === 'chToEn') {
-        return `https://maplestory.io/api/GMS/62/mob/${mobId}`;
+        return `https://maplestory.io/api/GMS/83/mob/${mobId}`;
     } else if (mode === 'enToCh') {
         return `https://maplestory.io/api/TWMS/256/mob/${mobId}`;
     }

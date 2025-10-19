@@ -168,7 +168,7 @@ function getTranslateApiUrl(searchTerm) {
     if (currentTranslateMode === 'chToEn') {
         return `https://maplestory.io/api/TWMS/256/item?&searchFor=${encodedTerm}`;
     } else if (currentTranslateMode === 'enToCh') {
-        return `https://maplestory.io/api/GMS/62/item?&searchFor=${encodedTerm}`;
+        return `https://maplestory.io/api/GMS/83/item?&searchFor=${encodedTerm}`;
     }
 
     throw new Error('不支援的翻譯模式');
@@ -349,7 +349,7 @@ async function performApiTranslation(text, itemId, mode) {
 // 獲取翻譯API URL - Get Translation API URL
 function getTranslationApiUrl(itemId, mode) {
     if (mode === 'chToEn') {
-        return `https://maplestory.io/api/GMS/62/item/${itemId}`;
+        return `https://maplestory.io/api/GMS/83/item/${itemId}`;
     } else if (mode === 'enToCh') {
         return `https://maplestory.io/api/TWMS/256/item/${itemId}`;
     }
