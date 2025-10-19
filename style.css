@@ -738,3 +738,18 @@ main .content {
   font-weight: bold;
   font-size: 1.1rem;
 }
+
+/* ===== Discord Author Link ===== */
+.discord-author-link {
+  display: inline-flex;
+  align-items: center;
+  color: #7289da;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.discord-author-link:hover {
+  background-color: #f0f2f5;
+}
