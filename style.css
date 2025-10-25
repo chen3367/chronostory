@@ -512,8 +512,8 @@ main .content {
   margin-bottom: 20px;
 }
 
-/* ===== 職業標籤樣式 ===== */
-.class-tags {
+/* ===== 標籤樣式 ===== */
+.general-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -525,11 +525,11 @@ main .content {
   line-height: 1.5;
 }
 
-.class-tags:empty {
+.general-tags:empty {
   display: none;
 }
 
-.class-tag {
+.general-tag {
   display: inline-block;
   padding: 6px 12px;
   border-radius: 15px;
@@ -539,19 +539,37 @@ main .content {
   transition: all 0.2s ease;
 }
 
-.class-tag.active {
+.general-tag.active {
   background-color: #2c3e50;
   color: white;
   border-color: #2c3e50;
 }
 
-.class-tag.inactive {
+.general-tag.inactive {
   background-color: #f8f9fa;
   color: #6c757d;
   border-color: #dee2e6;
 }
 
-.class-tag:hover {
+.general-tag.weak {
+  background-color: #2c3e50;
+  color: white;
+  border-color: #2c3e50;
+}
+
+.general-tag.neutral {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  border-color: #dee2e6;
+}
+
+.general-tag.resistant {
+  background-color: #6c757d;
+  color: white;
+  border-color: #6c757d;
+}
+
+.general-tag:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

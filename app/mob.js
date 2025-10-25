@@ -498,18 +498,27 @@ function generateMobWeaknessHTML(mob) {
     if (!mob) return '';
 
     const allWeakness = [
-        { key: 'fire_weakness', name: '火', active: mob.fire_weakness === 1 },
-        { key: 'ice_weakness', name: '冰', active: mob.ice_weakness === 1 },
-        { key: 'lightning_weakness', name: '雷', active: mob.lightning_weakness === 1 },
-        { key: 'holy_weakness', name: '聖', active: mob.holy_weakness === 1 },
-        { key: 'poison_weakness', name: '毒', active: mob.poison_weakness === 1 }
+        { key: 'fire_weakness', name: '火', value: mob.fire_weakness },
+        { key: 'ice_weakness', name: '冰', value: mob.ice_weakness },
+        { key: 'lightning_weakness', name: '雷', value: mob.lightning_weakness },
+        { key: 'holy_weakness', name: '聖', value: mob.holy_weakness },
+        { key: 'poison_weakness', name: '毒', value: mob.poison_weakness }
     ];
 
-    const weaknessTags = allWeakness.map(cls =>
-        `<span class="class-tag ${cls.active ? 'active' : 'inactive'}">${cls.name}</span>`
-    ).join('');
+    const weaknessTags = allWeakness.map(w => {
+        let weakness = 'neutral';
+        let title = '';
+        if (w.value === 1) {
+            weakness = 'weak';
+            title = `${w.name}弱點`;
+        } else if (w.value === -1) {
+            weakness = 'resistant';
+            title = `${w.name}抗性`;
+        }
+        return `<span class="general-tag ${weakness}" title="${title}">${w.name}</span>`;
+    }).join('');
 
-    return `<div class="class-tags">${weaknessTags}</div></div><div class="item-info">`;
+    return `<div class="general-tags">${weaknessTags}</div></div><div class="item-info">`;
 }
 
 // 生成怪物基本資訊HTML - Generate Mob Basic Info HTML

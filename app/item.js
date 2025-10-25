@@ -537,10 +537,10 @@ function generateEquipmentClassHTML(equipment) {
     ];
 
     const classTags = allClasses.map(cls =>
-        `<span class="class-tag ${cls.active ? 'active' : 'inactive'}">${cls.name}</span>`
+        `<span class="general-tag ${cls.active ? 'active' : 'inactive'}">${cls.name}</span>`
     ).join('');
 
-    return `<div class="class-tags">${classTags}</div></div><div class="item-info">`;
+    return `<div class="general-tags">${classTags}</div></div><div class="item-info">`;
 }
 
 // 生成物品基本資訊HTML - Generate Item Basic Info HTML
