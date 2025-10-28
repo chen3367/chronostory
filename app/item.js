@@ -250,7 +250,7 @@ async function performItemSearch(searchTerm) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            query: searchTerm
+            query: [searchTerm]
         })
     });
 }
